@@ -8,7 +8,7 @@ export function StyleSection() {
     <section id="style" className="border-t border-ink/10 bg-bg">
       <div className="mx-auto grid max-w-[1600px] items-center gap-10 px-5 py-14 sm:px-8 sm:py-20 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16">
         <ScrollReveal>
-          <SectionLabel n="" label="STYLE" />
+          <SectionLabel label="STYLE" />
           <h2 className="mb-5 mt-5 font-condensed text-[clamp(34px,5vw,72px)] font-bold leading-[0.98]">
             Style.
           </h2>

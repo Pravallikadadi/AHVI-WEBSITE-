@@ -11,7 +11,7 @@ export function PrepSection() {
       <div className="mx-auto max-w-[1600px] px-5 py-14 sm:px-8 sm:py-20">
         <div className="grid gap-10 lg:grid-cols-[1fr_1fr] lg:gap-16">
           <ScrollReveal>
-            <SectionLabel n="" label="PREP" />
+            <SectionLabel label="PREP" />
             <h2 className="mb-5 mt-5 max-w-[14ch] font-condensed text-[clamp(34px,5vw,72px)] font-bold leading-[0.98]">
               Be ready for what's next.
             </h2>
