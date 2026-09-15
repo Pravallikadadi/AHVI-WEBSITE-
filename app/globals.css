@@ -1,0 +1,223 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: "abcNormal";
+  src: url("/fonts/abcNormal.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Theme tokens — every color utility (bg-ink, text-muted, border-surface, …) reads these, so light/dark
+   is a single variable swap rather than a per-component rewrite. Values are "R G B" triples so Tailwind's
+   `/opacity` modifiers keep working (rgb(var(--x) / <alpha-value>)). */
+:root {
+  color-scheme: light;
+
+  --color-bg: 255 255 255;
+  --color-surface: 241 241 240;
+  --color-ink: 10 10 10;
+  --color-muted: 86 86 86;
+  --color-muted2: 138 138 138;
+  --color-gold: 26 26 26;
+  --color-goldsoft: 239 239 239;
+  --color-accent: 46 46 46;
+  --color-error: 160 64 64;
+
+  /* Signature brand gradient — violet → indigo → cyan. Used for spark borders, chips and gradient text. */
+  --brand-from: 124 111 238;
+  --brand-via: 99 102 241;
+  --brand-to: 34 211 238;
+  --brand-text: 65 58 147;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-bg: 11 11 13;
+  --color-surface: 25 25 29;
+  --color-ink: 245 245 247;
+  --color-muted: 172 172 180;
+  --color-muted2: 122 122 130;
+  --color-gold: 235 235 238;
+  --color-goldsoft: 33 33 38;
+  --color-accent: 206 206 213;
+  --color-error: 224 120 120;
+
+  --brand-from: 152 141 255;
+  --brand-via: 132 142 255;
+  --brand-to: 58 224 247;
+  --brand-text: 214 210 255;
+}
+
+/* Briefly promoted to * during a theme toggle so colors crossfade instead of snapping — see theme-toggle.tsx. */
+.theme-transition,
+.theme-transition * {
+  transition: background-color 0.35s ease, border-color 0.35s ease, color 0.35s ease, fill 0.35s ease,
+    stroke 0.35s ease, opacity 0.35s ease !important;
+}
+
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+html.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+html.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+html {
+  font-family: 'abcNormal', system-ui, sans-serif;
+  --font-size-xs: 0.688rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.5rem;
+  --font-size-2xl: 1.875rem;
+  --font-size-3xl: 2.25rem;
+  --font-size-4xl: 3.25rem;
+}
+
+body {
+  background: rgb(var(--color-bg));
+  color: rgb(var(--color-ink));
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 24px;
+  letter-spacing: 0;
+}
+
+h1, h2, h3 {
+  letter-spacing: 0;
+  line-height: 1.08;
+}
+
+small, .label, .text-label {
+  font-family: 'abcNormal', system-ui, sans-serif;
+  font-size: var(--font-size-xs);
+  line-height: 1rem;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+::selection {
+  background: rgb(var(--color-ink) / 0.14);
+}
+
+:focus-visible {
+  outline: 2px solid rgb(var(--color-ink));
+  outline-offset: 2px;
+}
+
+.ahvi-wordmark {
+    -webkit-text-stroke: .4px currentColor;
+    font-family: anton;
+    font-weight: 800;
+}
+
+/* Shared brand-gradient chip — pale in light mode, deep in dark mode, purely from the vars above. */
+.gradient-chip {
+  background: linear-gradient(100deg, rgb(var(--brand-from) / 0.16), rgb(var(--brand-to) / 0.16));
+  color: rgb(var(--brand-text));
+}
+
+/* Spark cards — rich gradient wash + a conic-gradient spark that runs continuously around the border, plus a shine sweep on hover. */
+@property --spark-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.spark-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(130% 160% at 0% 0%, rgb(var(--brand-from) / 0.14), transparent 55%),
+    radial-gradient(130% 160% at 100% 100%, rgb(var(--brand-to) / 0.14), transparent 55%),
+    radial-gradient(90% 120% at 100% 0%, rgb(var(--brand-via) / 0.1), transparent 60%),
+    rgb(var(--color-bg));
+}
+
+.spark-card__border {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 1px;
+  pointer-events: none;
+  --spark-angle: 0deg;
+  background: conic-gradient(
+    from var(--spark-angle),
+    transparent 0deg,
+    rgb(var(--brand-from) / 0.95) 18deg,
+    rgb(var(--brand-via) / 0.9) 55deg,
+    rgb(var(--brand-to) / 0.9) 92deg,
+    transparent 132deg,
+    transparent 360deg
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.55;
+  animation: spark-rotate 6s linear infinite;
+  animation-delay: var(--spark-delay, 0s);
+  transition: opacity 0.4s ease;
+}
+
+.spark-card:hover .spark-card__border {
+  opacity: 1;
+}
+
+.spark-card__sheen {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 32%, rgb(var(--color-bg) / 0.7) 48%, transparent 64%);
+  background-size: 220% 100%;
+  background-position: 160% 0;
+  mix-blend-mode: overlay;
+  transition: background-position 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.spark-card:hover .spark-card__sheen {
+  background-position: -60% 0;
+}
+
+.spark-card__number {
+  background: linear-gradient(100deg, rgb(var(--brand-from)), rgb(var(--brand-via)) 50%, rgb(var(--brand-to)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@keyframes spark-rotate {
+  to {
+    --spark-angle: 360deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spark-card__border {
+    animation: none;
+    opacity: 0.7;
+  }
+  .spark-card__sheen {
+    transition: none;
+    background-position: -60% 0;
+  }
+}
+
+
+.text-muted2 {
+    --tw-text-opacity: 1;
+    color: rgb(211 208 208);
+}
