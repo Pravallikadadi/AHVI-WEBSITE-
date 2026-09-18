@@ -19,7 +19,10 @@
   src: url("/fonts/Anton.woff2") format("woff2");
   font-weight: 400;
   font-style: normal;
-  font-display: swap;
+  /* block (not swap): the wordmark is brand-critical, so a few invisible ms while this ~12KB file
+     loads is preferable to briefly painting it in a thin fallback face and then visibly swapping
+     to Anton. Paired with the <link rel="preload"> in app/layout.tsx so that window stays tiny. */
+  font-display: block;
 }
 
 /* Theme tokens — every color utility (bg-ink, text-muted, border-surface, …) reads these, so light/dark

@@ -23,7 +23,6 @@ export default function ReferralPage() {
   return (
     <MarketingShell>
       <section className="relative overflow-hidden bg-ink text-bg">
-        <div className="pointer-events-none absolute -right-[16%] -top-[38%] aspect-square w-[min(680px,90vw)] border border-goldsoft/15" />
         <div className="relative mx-auto max-w-[900px] px-5 py-16 text-center sm:px-8 sm:py-20">
           <div className="mb-4.5 text-[11px] tracking-[0.26em] text-goldsoft">{highlightAhvi("AHVI referral")}</div>
           <h1 className="mb-4.5 font-condensed text-[clamp(32px,5vw,58px)] font-semibold leading-tight">

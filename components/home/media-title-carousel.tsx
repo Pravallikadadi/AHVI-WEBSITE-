@@ -84,8 +84,8 @@ export function MediaTitleCarousel({ items }: { items: CarouselItem[] }) {
   };
 
   return (
-    <div ref={wrapperRef} onMouseEnter={pause} onMouseLeave={scheduleResume}>
-      <div className="scrollbar-hide -mx-5 flex flex-nowrap gap-x-7 overflow-x-auto border-b border-ink/10 px-5 pb-3 sm:mx-0 sm:gap-x-9 sm:px-0">
+    <div ref={wrapperRef} className="lg:flex lg:h-full lg:flex-col" onMouseEnter={pause} onMouseLeave={scheduleResume}>
+      <div className="scrollbar-hide -mx-5 flex flex-nowrap gap-x-7 overflow-x-auto border-b border-ink/10 px-5 pb-3 sm:mx-0 sm:gap-x-9 sm:px-0 lg:shrink-0">
         {items.map((it, i) => (
           <button
             key={it.id}
@@ -114,14 +114,14 @@ export function MediaTitleCarousel({ items }: { items: CarouselItem[] }) {
 
       <div
         ref={scrollerRef}
-        className="scrollbar-hide mt-6 flex snap-x snap-mandatory overflow-x-auto rounded-lg"
+        className="scrollbar-hide mt-6 flex snap-x snap-mandatory overflow-x-auto rounded-lg lg:min-h-0 lg:flex-1"
         onPointerDown={pause}
         onPointerUp={scheduleResume}
         onTouchStart={pause}
         onTouchEnd={scheduleResume}
       >
         {items.map((it) => (
-          <div key={it.id} className="relative aspect-[4/5] w-full shrink-0 snap-center overflow-hidden bg-bg lg:aspect-auto lg:h-[300px]">
+          <div key={it.id} className="relative aspect-[4/5] w-full shrink-0 snap-center overflow-hidden bg-bg lg:aspect-auto lg:h-full">
             {it.type === "video" ? (
               <video src={it.src} muted playsInline loop autoPlay controls className="h-full w-full object-contain" />
             ) : (
@@ -131,7 +131,7 @@ export function MediaTitleCarousel({ items }: { items: CarouselItem[] }) {
         ))}
       </div>
 
-      <div className="mt-5 flex items-center justify-center gap-2" role="tablist" aria-label="Carousel pagination">
+      <div className="mt-5 flex items-center justify-center gap-2 lg:shrink-0" role="tablist" aria-label="Carousel pagination">
         {items.map((it, i) => (
           <button
             key={it.id}

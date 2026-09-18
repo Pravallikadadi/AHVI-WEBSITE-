@@ -15,7 +15,9 @@ const RESUME_AFTER_MS = 3000;
     A gently auto-advancing, swipeable carousel with pagination dots that track the active card. */
 export function FeatureCardGrid({ items }: { items: { id: string; label: string; note: string }[] }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
+  const [inView, setInView] = useState(false);
   const reduce = useReducedMotion();
   const pausedRef = useRef(false);
   const resumeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -42,8 +44,19 @@ export function FeatureCardGrid({ items }: { items: { id: string; label: string;
     el.scrollTo({ left: card.offsetLeft - el.offsetLeft, behavior: "smooth" });
   };
 
+  // Only start autoplay once this carousel's section is actually on screen — not the instant the
+  // page loads — and stop again the moment it scrolls out of view. A single threshold means the
+  // callback only fires on real enter/exit crossings, not on every small scroll movement.
   useEffect(() => {
-    if (reduce) return;
+    const el = wrapperRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(([entry]) => setInView(entry?.isIntersecting ?? false), { threshold: 0.3 });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (reduce || !inView) return;
     const timer = setInterval(() => {
       if (pausedRef.current) return;
       const el = scrollerRef.current;
@@ -57,7 +70,7 @@ export function FeatureCardGrid({ items }: { items: { id: string; label: string;
       el.scrollTo({ left: atEnd ? 0 : (current + 1) * step, behavior: "smooth" });
     }, AUTOPLAY_MS);
     return () => clearInterval(timer);
-  }, [reduce, items.length]);
+  }, [reduce, items.length, inView]);
 
   const pause = () => {
     pausedRef.current = true;
@@ -71,7 +84,7 @@ export function FeatureCardGrid({ items }: { items: { id: string; label: string;
   };
 
   return (
-    <div onMouseEnter={pause} onMouseLeave={scheduleResume}>
+    <div ref={wrapperRef} onMouseEnter={pause} onMouseLeave={scheduleResume}>
       <div
         ref={scrollerRef}
         className="scrollbar-hide -mx-5 flex flex-nowrap snap-x snap-proximity gap-4 overflow-x-auto px-5 pb-2 sm:-mx-8 sm:px-8"

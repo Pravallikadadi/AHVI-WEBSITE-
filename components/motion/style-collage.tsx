@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowLeft } from "lucide-react";
@@ -28,32 +28,50 @@ const LAYOUT: Layout[] = [
   { top: "46%", left: "28%", rotate: -4, z: 40, from: { x: 0, y: 300, rotate: -210 } },
 ];
 
-/** Scattered phone-card collage — each card flips/rotates in from a different direction, re-triggering on a loop. */
+/** Scattered phone-card collage — each card flips/rotates in from a different direction, re-triggering on a loop
+    while this section is on screen. Nothing plays before the user actually scrolls to it, and the loop pauses
+    (without unwinding already-settled cards) the moment it scrolls back out of view. */
 export function StyleCollage() {
   const reduce = useReducedMotion();
   const [cycle, setCycle] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [inView, setInView] = useState(false);
+  const [started, setStarted] = useState(false);
 
   useEffect(() => {
-    if (reduce) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        const visible = entry?.isIntersecting ?? false;
+        setInView(visible);
+        if (visible) setStarted(true);
+      },
+      { threshold: 0.3 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (reduce || !inView) return;
     const id = setInterval(() => setCycle((c) => c + 1), CYCLE_MS);
     return () => clearInterval(id);
-  }, [reduce]);
+  }, [reduce, inView]);
 
   return (
-    <div className="relative mx-auto aspect-square w-full max-w-[820px] overflow-hidden sm:aspect-[16/10]">
+    <div ref={containerRef} className="relative mx-auto aspect-square w-full max-w-[820px] overflow-hidden sm:aspect-[16/10]">
       {styleBoards.slice(0, LAYOUT.length).map((b, i) => {
         const l = LAYOUT[i];
+        const targetPose = { opacity: 1, x: 0, y: 0, rotate: l.rotate, scale: 1 };
+        const hiddenPose = reduce ? targetPose : { opacity: 0, x: l.from.x, y: l.from.y, rotate: l.from.rotate, scale: 0.45 };
         return (
           <motion.div
             key={`${b.name}-${cycle}`}
             className="absolute w-[44%] overflow-hidden rounded-2xl border border-ink/10 bg-bg shadow-[0_24px_60px_rgba(10,10,10,0.18)] sm:w-[38%]"
             style={{ top: l.top, left: l.left, zIndex: l.z }}
-            initial={
-              reduce
-                ? { opacity: 1, x: 0, y: 0, rotate: l.rotate, scale: 1 }
-                : { opacity: 0, x: l.from.x, y: l.from.y, rotate: l.from.rotate, scale: 0.45 }
-            }
-            animate={{ opacity: 1, x: 0, y: 0, rotate: l.rotate, scale: 1 }}
+            initial={hiddenPose}
+            animate={started ? targetPose : hiddenPose}
             transition={{ type: "spring", stiffness: 95, damping: 15, mass: 0.9, delay: reduce ? 0 : i * 0.1 }}
           >
             <div className="flex items-center gap-2 px-3 pt-3">
