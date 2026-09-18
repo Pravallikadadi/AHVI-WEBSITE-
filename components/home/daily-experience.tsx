@@ -13,10 +13,10 @@ const ROWS = [
 export function DailyExperience() {
   return (
     <section className="border-t border-ink/10 bg-surface">
-      <div className="mx-auto max-w-[1600px] px-5 py-20 sm:px-8 sm:py-28">
+      <div className="mx-auto max-w-[1600px] px-5 py-14 sm:px-8 sm:py-28">
         <ScrollReveal className="mb-12 max-w-[640px]">
           <SectionLabel label="A day with AHVI" />
-          <h2 className="mb-4 mt-4 font-condensed text-[clamp(30px,4vw,50px)] font-semibold leading-tight">
+          <h2 className="mb-4 mt-4 font-condensed text-[clamp(34px,4.6vw,58px)] font-semibold leading-tight">
             Good morning. Here&apos;s your day.
           </h2>
           <p className="text-[15.5px] leading-relaxed text-muted">

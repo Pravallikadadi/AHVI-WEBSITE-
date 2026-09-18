@@ -5,6 +5,7 @@ import { WaitlistCta } from "@/components/waitlist-cta";
 import { TextReveal } from "@/components/motion/text-reveal";
 import { HeroCarousel, type HeroSlide, type HeroCarouselHandle } from "@/components/motion/hero-carousel";
 import { cn } from "@/lib/utils";
+import { highlightAhvi } from "@/lib/ahvi-text";
 
 const heroSlides: HeroSlide[] = [
   {
@@ -56,7 +57,7 @@ export function Hero() {
         className="pointer-events-none absolute inset-0 opacity-[0.035] [background-image:linear-gradient(to_right,rgb(var(--color-ink))_1px,transparent_1px),linear-gradient(to_bottom,rgb(var(--color-ink))_1px,transparent_1px)]"
         style={{ maskImage: "linear-gradient(to bottom, black, transparent 75%)" }}
       />
-      <div className="relative mx-auto grid max-w-[1600px] items-stretch gap-0 px-5 pb-0 pt-8 sm:px-8 sm:pt-10 lg:grid-cols-[0.9fr_1.3fr] lg:gap-10">
+      <div className="relative mx-auto grid max-w-[1600px] items-stretch gap-0 px-5 pb-0 pt-8 sm:px-8 sm:pt-10 lg:grid-cols-[0.78fr_1.42fr] lg:gap-10">
         <motion.div
           initial={reduce ? { opacity: 1 } : { opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
@@ -88,19 +89,20 @@ export function Hero() {
               );
             })}
           </div>
-          <h1 className="mb-7 font-condensed text-[clamp(46px,7vw,96px)] font-semibold leading-[0.94] tracking-tight text-ink">
-            <TextReveal text="Your effortlessly" />
+          <h1 className="mb-7 font-condensed text-[clamp(34px,10vw,46px)] font-semibold leading-[0.94] tracking-tight text-ink sm:text-[clamp(46px,7vw,96px)]">
+            <TextReveal text="Plan ahead." />
             <br />
-            <TextReveal text="put-together day." delay={0.12} />
+            <TextReveal text="Live in the moment." delay={0.12} />
           </h1>
           <p className="mb-9 max-w-[42ch] text-[clamp(15px,1.1vw,17px)] leading-relaxed text-muted">
-            AHVI reads your wardrobe, your schedule and your life — then decides what to wear, what to prepare and
-            what&apos;s next, before you have to think about it.
+            {highlightAhvi(
+              "AHVI reads your wardrobe, your schedule and your life — then decides what to wear, what to prepare and what's next, before you have to think about it."
+            )}
           </p>
           <div className="flex flex-wrap items-center gap-6">
             <WaitlistCta />
             <a href="#style" className="text-[12.5px] tracking-[0.14em] text-muted underline-offset-4 transition-colors hover:text-ink hover:underline">
-              Explore AHVI
+              {highlightAhvi("Explore AHVI")}
             </a>
           </div>
         </motion.div>
@@ -109,7 +111,7 @@ export function Hero() {
           initial={reduce ? { opacity: 1 } : { opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: reduce ? 0.01 : 0.8, delay: reduce ? 0 : 0.1 }}
-          className="flex items-center pb-10 sm:pb-14"
+          className="-mx-5 flex items-center pb-10 sm:mx-0 sm:pb-14"
         >
           <HeroCarousel slides={heroSlides} />
         </motion.div>

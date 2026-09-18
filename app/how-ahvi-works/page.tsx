@@ -1,57 +1,70 @@
+import fs from "fs";
+import path from "path";
 import type { Metadata } from "next";
 import { MarketingShell } from "@/components/shells/marketing-shell";
-import { Photo } from "@/components/media/photo";
+import { SectionLabel } from "@/components/home/section-label";
+import { HowItWorksAuto } from "@/components/home/how-it-works-auto";
+import { ScrollReveal } from "@/components/motion/scroll-reveal";
+import { highlightAhvi } from "@/lib/ahvi-text";
 
 export const metadata: Metadata = {
   title: "How AHVI Works",
-  description: "AHVI brings your wardrobe, style, preparation and plans together in three modules — Style, Prep and Plan.",
+  description: "From your wardrobe to your day, in four steps.",
 };
 
-const MODULES = [
+const STEPS = [
   {
-    name: "Style",
-    body: "AHVI helps you understand your personal style, organise your wardrobe, get outfit recommendations and create style boards — curated looks for every part of your life, from workdays to getaways.",
-    img: "/images/style-boards-hero.png",
-    alt: "AHVI Style Boards — curated looks for Workwear, Dinner, Minimal, Travel and Weekend",
-    ratio: "1894/830",
+    n: "01",
+    title: "Personalize",
+    body: "Discover your style, preferences, body shape, and wardrobe needs.",
+    video: "/videos/how-ahvi-works/video-01.mp4",
   },
   {
-    name: "Prep",
-    body: "AHVI helps you prepare — daily outfits, packing, skincare, and fitness and routines — so you're ready for what's next.",
-    img: "/images/prep-module-hero.png",
-    alt: "AHVI Prep module — mood boards and packing checklists for a Goa Weekend trip",
-    ratio: "3/2",
+    n: "02",
+    title: "Build Your Wardrobe",
+    body: "Add your existing clothes and create your digital wardrobe.",
+    video: "/videos/how-ahvi-works/video-02.mp4",
   },
   {
-    name: "Plan",
-    body: "AHVI helps you stay organised — today's plan, calendar, planner, bills and MediTracker, all in one place.",
-    img: "/images/plan-module-hero.png",
-    alt: "AHVI Plan module — Diet & Fitness, Home & Utilities, Today's Plan, MediTrack and Skincare",
-    ratio: "1895/830",
+    n: "03",
+    title: "Get Styled",
+    body: "Receive personalized outfit recommendations for every occasion.",
+    video: "/videos/how-ahvi-works/video-03.mp4",
+  },
+  {
+    n: "04",
+    title: "Plan With Confidence",
+    body: "Prepare outfits, organize your wardrobe, and dress with confidence.",
+    video: "/videos/how-ahvi-works/video-04.mp4",
   },
 ];
 
+function videoExists(src: string) {
+  try {
+    return fs.existsSync(path.join(process.cwd(), "public", src));
+  } catch {
+    return false;
+  }
+}
+
 export default function HowAhviWorksPage() {
+  const steps = STEPS.map((s) => ({ ...s, videoExists: videoExists(s.video) }));
+
   return (
     <MarketingShell hideFinalCta>
-      <section className="bg-bg">
-        <div className="mx-auto max-w-[900px] px-5 pb-6 pt-16 text-center sm:px-8 sm:pt-24">
-          <h1 className="font-condensed text-[clamp(34px,5vw,64px)] font-bold leading-[0.98]">
-            How AHVI works.
-          </h1>
-        </div>
-      </section>
+      <section className="border-t border-ink/10 bg-bg">
+        <div className="mx-auto max-w-[1600px] px-5 py-16 sm:px-8 sm:py-24">
+          <ScrollReveal className="mb-12 max-w-[640px]">
+            <SectionLabel label="How AHVI works" />
+            <h1 className="mb-4 mt-4 font-condensed text-[clamp(34px,4.8vw,60px)] font-bold leading-tight">
+              {highlightAhvi("From your wardrobe to your day, in four steps.")}
+            </h1>
+          </ScrollReveal>
 
-      <section className="mx-auto max-w-[1600px] px-5 py-10 sm:px-8 sm:py-14">
-        {MODULES.map((m) => (
-          <div key={m.name} className="grid items-center gap-10 border-t border-ink/10 py-14 first:border-t-0 sm:grid-cols-[0.85fr_1.15fr] sm:gap-16 sm:py-20">
-            <div>
-              <h2 className="mb-4 font-condensed text-[clamp(30px,4vw,48px)] font-bold">{m.name}</h2>
-              <p className="max-w-[42ch] text-[16px] leading-relaxed text-muted">{m.body}</p>
-            </div>
-            <Photo src={m.img} alt={m.alt} ratio={m.ratio} fit="contain" className="border border-ink/10 bg-surface" />
-          </div>
-        ))}
+          <ScrollReveal delay={0.1}>
+            <HowItWorksAuto steps={steps} />
+          </ScrollReveal>
+        </div>
       </section>
     </MarketingShell>
   );

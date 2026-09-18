@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
+import { highlightAhvi } from "@/lib/ahvi-text";
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -14,7 +15,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       <header className="border-b border-ink/10">
         <div className="mx-auto flex max-w-[1200px] items-center justify-between px-5 py-4 sm:px-8">
           <Link href="/admin/blogs" className="font-condensed text-[22px] font-bold tracking-[0.1em]">
-            AHVI ADMIN
+            {highlightAhvi("AHVI ADMIN")}
           </Link>
           <div className="flex items-center gap-4">
             <Link href="/blog" target="_blank" className="text-[13px] text-muted hover:text-accent">

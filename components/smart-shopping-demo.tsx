@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { Photo } from "@/components/media/photo";
 import { Button } from "@/components/ui/button";
+import { highlightAhvi } from "@/lib/ahvi-text";
 
 export function SmartShoppingDemo() {
   const [choice, setChoice] = useState<"buy" | "skip" | null>(null);
@@ -34,7 +35,7 @@ export function SmartShoppingDemo() {
         </div>
       </div>
       <div className="w-full max-w-[340px] border border-goldsoft/20 bg-ink p-5 text-bg">
-        <div className="mb-2 text-[10.5px] tracking-[0.2em] text-goldsoft">AHVI says</div>
+        <div className="mb-2 text-[10.5px] tracking-[0.2em] text-goldsoft">{highlightAhvi("AHVI says")}</div>
         <p className="mb-4 text-[15px] leading-relaxed text-bg/85">{verdict}</p>
         <div className="flex gap-2.5">
           <Button variant="gold" size="sm" className="flex-1" onClick={() => setChoice("buy")}>

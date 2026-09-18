@@ -65,6 +65,13 @@ export const styleBoards = [
     img: "/images/style-minimal-grid.webp",
     alt: "Minimal board — a long cream shirt dress",
   },
+  {
+    name: "Wedding",
+    subtitle: "Statement bridal pieces for your most celebrated day.",
+    why: "Rich embroidery, warm gold tones and versatile pieces come together for a look that feels timeless and celebratory.",
+    img: "/images/style-wedding-grid.webp",
+    alt: "Wedding board — an embroidered maroon lehenga with gold jewellery",
+  },
 ];
 
 export const personalizationDims = [
@@ -126,8 +133,8 @@ export const plans = [
 ];
 
 export const roles = [
-  { title: "Founding Product Designer", place: "Remote / Bengaluru", type: "Full-time" },
-  { title: "Flutter Engineer", place: "Remote / Bengaluru", type: "Full-time" },
+  { title: "Founding Product Designer", place: "Remote or Hyderabad", type: "Full-time" },
+  { title: "Flutter Engineer", place: "Remote or Hyderabad", type: "Full-time" },
   { title: "Applied ML — Vision", place: "Remote", type: "Full-time" },
   { title: "Growth Partner Program", place: "Anywhere", type: "Partnership" },
   { title: "Brand Partner Program", place: "Anywhere", type: "Partnership" },
@@ -161,8 +168,8 @@ export const footerLinks = [
   { label: "FAQ", href: "/faq" },
   { label: "Careers", href: "/careers" },
   { label: "Contact", href: "/contact" },
-  { label: "Privacy", href: "/legal/privacy" },
-  { label: "Terms", href: "/legal/terms" },
+  { label: "Privacy", href: "/privacypolicy" },
+  { label: "Terms", href: "/termsofservice" },
   { label: "Payment Policy", href: "/legal/payment-policy" },
   { label: "Cookies", href: "/legal/cookies" },
 ];
@@ -207,21 +214,19 @@ export const styleModules = [
   { n: "05", name: "Image Search", note: "Upload a photo. Find the piece, instantly.", img: "/images/features/05-image-search.jpg" },
 ];
 
+// Media-driven carousel items — `label` doubles as the clickable tab text, alt text and aria-label.
+// Swap `src`/`type` to replace the media later.
 export const prepModules = [
-  { id: "outfit-prep", label: "Outfit Preparation", note: "Complete looks for work, weekends, dinners, travel and special occasions — shoes and accessories included, matched to the weather." },
-  { id: "packing", label: "Packing", note: "A smart packing list built from your wardrobe — outfits, shoes and accessories for day and evening, sized to the trip." },
-  { id: "occasion-prep", label: "Occasion Preparation", note: "Workwear, dinner, party, vacation and wedding looks planned in advance, with outfit boards for what's coming up." },
-  { id: "beauty-prep", label: "Beauty & Self-Care Prep", note: "Simple morning and night routines, hair and beauty prep, and personal care reminders that keep you ready." },
-  { id: "daily-readiness", label: "Daily Readiness", note: "Today's outfit, the weather, what to carry and a ready-for-the-day checklist, brought together in one place." },
+  { id: "outfit-prep", label: "Outfit Recommendation", type: "image" as const, src: "/images/prep-plan/outfit-recommendations.jpg", alt: "Outfit recommendation — a wardrobe catalogued inside the AHVI app" },
+  { id: "packing", label: "Packing", type: "image" as const, src: "/images/prep-module-hero.png", alt: "Packing — mood boards and packing checklist for a weekend trip" },
+  { id: "skincare", label: "Skincare", type: "image" as const, src: "/images/prep-plan/skincare.jpg", alt: "AHVI Skincare screen" },
+  { id: "daily-readiness", label: "Dailywear", type: "image" as const, src: "/images/prep-plan/daily-readiness.jpg", alt: "Dailywear — AHVI's daily style recommendation screen" },
 ];
 
 export const planModules = [
-  { id: "todays-plan", label: "Today's Plan", note: "Your outfit, the weather, meetings and daily tasks — brought together every morning." },
-  { id: "calendar", label: "Calendar", note: "Everything on your day, in one place — appointments, events and plans organised clearly." },
-  { id: "planner", label: "Planner", note: "Create and manage daily and weekly plans, tasks, activities and reminders." },
-  { id: "bills", label: "Bills", note: "Track bills, due dates, paid and unpaid payments, categories and upcoming expenses." },
-  { id: "meditracker", label: "MediTracker", note: "Track medication schedules, reminders and daily completion in one place." },
-  { id: "reminders", label: "Reminders", note: "Set reminders for bills, medication, tasks, outfits, events and important activities." },
-  { id: "events", label: "Events", note: "Prepare for upcoming events with outfit plans, event details and reminders." },
-  { id: "home-utilities", label: "Home & Utilities", note: "Keep everyday home tasks, contacts, small admin and utility reminders organised in one place." },
+  { id: "todays-plan", label: "Today's Plan", type: "image" as const, src: "/images/plan-todays-plan.webp", alt: "AHVI Today's Plan screen" },
+  { id: "bills", label: "Bills", type: "image" as const, src: "/images/plan-home-bills.webp", alt: "AHVI Home & Utilities — Bills screen" },
+  { id: "meditracker", label: "MediTracker", type: "image" as const, src: "/images/plan-home-medi.webp", alt: "AHVI Home & Utilities — MediTrack screen" },
+  { id: "diet", label: "Diet", type: "image" as const, src: "/images/plan-diet.webp", alt: "AHVI Diet screen" },
+  { id: "fitness", label: "Fitness", type: "image" as const, src: "/images/plan-fitness.webp", alt: "AHVI Fitness screen" },
 ];

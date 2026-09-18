@@ -19,7 +19,7 @@ export function Newsletter() {
             if (!email) return;
             setDone(true);
           }}
-          className="flex w-full max-w-[420px] gap-2"
+          className="flex w-full max-w-[420px] flex-col gap-2 sm:flex-row"
         >
           {done ? (
             <div className="flex-1 py-3.5 text-center text-[14px] text-accent">Thanks — you're subscribed.</div>
@@ -31,9 +31,9 @@ export function Newsletter() {
                 type="email"
                 required
                 placeholder="Enter your email"
-                className="flex-1 border border-ink/15 bg-bg px-5 py-3.5 text-[14px] placeholder:text-muted"
+                className="min-w-0 flex-1 border border-ink/15 bg-bg px-5 py-3.5 text-[14px] placeholder:text-muted"
               />
-              <button type="submit" className="flex items-center gap-2 whitespace-nowrap border border-ink bg-ink px-5 py-3.5 text-[13px] tracking-[0.06em] text-bg hover:bg-black">
+              <button type="submit" className="flex shrink-0 items-center justify-center gap-2 whitespace-nowrap border border-ink bg-ink px-5 py-3.5 text-[13px] tracking-[0.06em] text-bg hover:bg-black">
                 Subscribe <ArrowRight size={14} />
               </button>
             </>

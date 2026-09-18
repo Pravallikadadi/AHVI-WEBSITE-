@@ -3,6 +3,7 @@ import Link from "next/link";
 import { MarketingShell } from "@/components/shells/marketing-shell";
 import { BlueprintFrame } from "@/components/blueprint-frame";
 import { roles } from "@/lib/site-data";
+import { highlightAhvi } from "@/lib/ahvi-text";
 
 export const metadata: Metadata = {
   title: "Careers",
@@ -37,14 +38,14 @@ export default function CareersPage() {
       <section className="mx-auto grid max-w-[1000px] gap-5 px-5 pb-16 sm:px-8 sm:pb-24" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))" }}>
         <BlueprintFrame className="p-7">
           <div className="mb-2.5 font-condensed text-[22px] font-semibold">Growth Partner Program</div>
-          <p className="mb-4 text-[14.5px] leading-relaxed text-muted">For operators who want to help AHVI grow into new markets and audiences.</p>
+          <p className="mb-4 text-[14.5px] leading-relaxed text-muted">{highlightAhvi("For operators who want to help AHVI grow into new markets and audiences.")}</p>
           <Link href="/contact" className="text-[12.5px] tracking-[0.1em] text-accent">
             Get in touch →
           </Link>
         </BlueprintFrame>
         <BlueprintFrame className="p-7">
           <div className="mb-2.5 font-condensed text-[22px] font-semibold">Brand Partner Program</div>
-          <p className="mb-4 text-[14.5px] leading-relaxed text-muted">For fashion and lifestyle brands who want to reach AHVI's members.</p>
+          <p className="mb-4 text-[14.5px] leading-relaxed text-muted">{highlightAhvi("For fashion and lifestyle brands who want to reach AHVI's members.")}</p>
           <Link href="/contact" className="text-[12.5px] tracking-[0.1em] text-accent">
             Get in touch →
           </Link>

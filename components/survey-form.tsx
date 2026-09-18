@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { BlueprintFrame } from "@/components/blueprint-frame";
+import { highlightAhvi } from "@/lib/ahvi-text";
 
 const OPTIONS = ["Style", "Wardrobe", "Shopping", "Lifestyle", "Wellness", "All"];
 
@@ -25,7 +26,7 @@ export function SurveyForm() {
     return (
       <BlueprintFrame className="p-8 text-center sm:p-11">
         <h2 className="mb-2.5 font-condensed text-[28px] font-semibold">Thank you.</h2>
-        <p className="mb-5 text-[14.5px] text-muted">This shapes what AHVI builds next.</p>
+        <p className="mb-5 text-[14.5px] text-muted">{highlightAhvi("This shapes what AHVI builds next.")}</p>
         <Button asChild variant="primary">
           <Link href="/waitlist">Join the Waitlist</Link>
         </Button>
@@ -36,7 +37,7 @@ export function SurveyForm() {
   return (
     <form onSubmit={onSubmit}>
       <div className="mb-8">
-        <div className="mb-3.5 text-[15px] font-medium">What would you want AHVI to help with?</div>
+        <div className="mb-3.5 text-[15px] font-medium">{highlightAhvi("What would you want AHVI to help with?")}</div>
         <div className="flex flex-wrap gap-2.5">
           {OPTIONS.map((o) => (
             <button

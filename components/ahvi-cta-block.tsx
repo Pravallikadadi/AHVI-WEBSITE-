@@ -11,9 +11,9 @@ export function AhviCtaBlock() {
         style={{ background: "radial-gradient(circle, rgb(var(--color-bg)) 0%, transparent 70%)" }}
       />
       <SpotlightCard variant="dark" className="relative">
-        <div className="mx-auto max-w-[900px] px-5 py-20 text-center sm:px-8 sm:py-28">
+        <div className="mx-auto max-w-[900px] px-5 py-14 text-center sm:px-8 sm:py-28">
           <ScrollReveal>
-            <div className="text-[12px] font-bold tracking-[0.28em] text-bg">AHVI</div>
+            <div className="ahvi-wordmark ahvi-wordmark-strong text-[18px] tracking-[0.28em] text-bg sm:text-[20px]">AHVI</div>
             <h2 className="mx-auto mb-3 mt-5 max-w-[20ch] font-condensed text-[clamp(34px,5.6vw,64px)] font-bold leading-[0.98]">
               Style. Prep. Plan.
             </h2>

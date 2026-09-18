@@ -1,5 +1,6 @@
 "use client";
 import { TextReveal } from "@/components/motion/text-reveal";
+import { highlightAhvi } from "@/lib/ahvi-text";
 
 export function FAQHero() {
   return (
@@ -10,7 +11,7 @@ export function FAQHero() {
           <TextReveal text="Everything you need to know about AHVI." />
         </h1>
         <p className="mx-auto max-w-[48ch] text-[15px] leading-relaxed text-bg/60">
-          From your wardrobe to your daily plans, here&apos;s how AHVI works.
+          {highlightAhvi("From your wardrobe to your daily plans, here's how AHVI works.")}
         </p>
       </div>
     </section>

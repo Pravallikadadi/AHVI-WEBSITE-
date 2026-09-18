@@ -7,6 +7,7 @@ import { PricingCard } from "@/components/pricing/pricing-card";
 import { CouponInput } from "@/components/pricing/coupon-input";
 import { FeatureCarousel } from "@/components/pricing/feature-carousel";
 import { AhviCtaBlock } from "@/components/ahvi-cta-block";
+import { highlightAhvi } from "@/lib/ahvi-text";
 
 export const metadata: Metadata = {
   title: "Pricing",
@@ -17,13 +18,13 @@ export default function PricingPage() {
   return (
     <MarketingShell hideFinalCta>
       <section className="mx-auto max-w-[720px] px-5 pb-3 pt-16 text-center sm:px-8 sm:pt-24">
-        <div className="mb-4 text-[11px] tracking-[0.26em] text-muted">02 / PLAN — AHVI Premium</div>
+        <div className="mb-4 text-[11px] tracking-[0.26em] text-muted">{highlightAhvi("02 / PLAN — AHVI Premium")}</div>
         <h1 className="mb-4.5 font-condensed text-[clamp(32px,4.6vw,52px)] font-semibold leading-tight">
           <TextReveal text="Your Personal AI," /><br />
           <TextReveal text="Made More Powerful." delay={0.1} />
         </h1>
         <p className="mx-auto max-w-[46ch] text-[15px] leading-relaxed text-muted">
-          Unlock the complete AHVI experience with smarter styling, planning, wellness and everyday intelligence.
+          {highlightAhvi("Unlock the complete AHVI experience with smarter styling, planning, wellness and everyday intelligence.")}
         </p>
       </section>
 
@@ -44,10 +45,12 @@ export default function PricingPage() {
       </section>
 
       <AhviCtaBlock />
-      <div className="mx-auto flex max-w-[560px] justify-center gap-4 pb-16 text-[11.5px] text-muted2 sm:pb-20">
-        <Link href="/legal/terms" className="hover:text-accent">Terms</Link>
-        <span>·</span>
-        <Link href="/legal/privacy" className="hover:text-accent">Privacy Policy</Link>
+      <div className="bg-ink pb-16 sm:pb-20">
+        <div className="mx-auto flex max-w-[560px] justify-center gap-4 text-[11.5px] text-bg/50">
+          <Link href="/termsofservice" className="transition-colors hover:text-bg">Terms</Link>
+          <span>·</span>
+          <Link href="/privacypolicy" className="transition-colors hover:text-bg">Privacy Policy</Link>
+        </div>
       </div>
     </MarketingShell>
   );

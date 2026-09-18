@@ -10,9 +10,9 @@ import type { Blog } from "@/lib/blog-types";
 
 const PAGE_SIZE = 6;
 
-export function BlogExplorer({ initialBlogs }: { initialBlogs: Blog[] }) {
+export function BlogExplorer({ initialBlogs, excludeId }: { initialBlogs: Blog[]; excludeId?: string }) {
   const searchParams = useSearchParams();
-  const [blogs, setBlogs] = useState(initialBlogs);
+  const [blogs, setBlogs] = useState(initialBlogs.filter((b) => b.id !== excludeId));
   const [q, setQ] = useState("");
   const [category, setCategory] = useState(searchParams.get("category") || "All");
   const [loading, setLoading] = useState(false);
@@ -28,7 +28,7 @@ export function BlogExplorer({ initialBlogs }: { initialBlogs: Blog[] }) {
       fetch("/api/blogs?" + params.toString(), { signal: controller.signal })
         .then((r) => r.json())
         .then((data) => {
-          setBlogs(data.blogs || []);
+          setBlogs((data.blogs || []).filter((b: Blog) => b.id !== excludeId));
           setVisible(PAGE_SIZE);
         })
         .catch(() => {})
@@ -38,7 +38,7 @@ export function BlogExplorer({ initialBlogs }: { initialBlogs: Blog[] }) {
       clearTimeout(t);
       controller.abort();
     };
-  }, [q, category]);
+  }, [q, category, excludeId]);
 
   const shown = blogs.slice(0, visible);
 
@@ -70,12 +70,15 @@ export function BlogExplorer({ initialBlogs }: { initialBlogs: Blog[] }) {
         />
       </div>
       {loading ? (
-        <div className="grid gap-8" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 270px), 1fr))" }}>
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="animate-pulse">
-              <div className="aspect-[4/3] bg-surface" />
-              <div className="mt-4 h-4 w-2/3 bg-surface" />
-              <div className="mt-2 h-4 w-1/2 bg-surface" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="animate-pulse border border-ink/10">
+              <div className="aspect-[16/9] bg-surface" />
+              <div className="p-5">
+                <div className="h-3 w-1/4 bg-surface" />
+                <div className="mt-3 h-4 w-5/6 bg-surface" />
+                <div className="mt-2 h-4 w-2/3 bg-surface" />
+              </div>
             </div>
           ))}
         </div>
@@ -97,8 +100,7 @@ export function BlogExplorer({ initialBlogs }: { initialBlogs: Blog[] }) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
-              className="grid gap-8"
-              style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 270px), 1fr))" }}
+              className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3"
             >
               {shown.map((b, i) => (
                 <motion.div
@@ -107,10 +109,9 @@ export function BlogExplorer({ initialBlogs }: { initialBlogs: Blog[] }) {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: "-8%" }}
                   transition={{ duration: 0.4, delay: (i % PAGE_SIZE) * 0.05 }}
-                  style={i % 5 === 0 ? { gridColumn: "span 2" } : undefined}
-                  className={i % 5 === 0 ? "sm:[grid-column:span_2]" : ""}
+                  className="h-full"
                 >
-                  <BlogCard blog={b} large={i % 5 === 0} />
+                  <BlogCard blog={b} />
                 </motion.div>
               ))}
             </motion.div>

@@ -8,6 +8,7 @@ import { DeleteBlogModal } from "@/components/admin/delete-blog-modal";
 import { BLOG_CATEGORIES } from "@/lib/blog-types";
 import type { Blog } from "@/lib/blog-types";
 import { useToast } from "@/lib/toast";
+import { highlightAhvi } from "@/lib/ahvi-text";
 
 export function AdminBlogList() {
   const { push } = useToast();
@@ -101,7 +102,7 @@ export function AdminBlogList() {
           <p className="mb-4 text-[15px] text-muted">
             No blogs found.
             <br />
-            Create your first AHVI story.
+            {highlightAhvi("Create your first AHVI story.")}
           </p>
           <Link href="/admin/blogs/new" className="inline-flex items-center gap-2 rounded-full bg-ink px-5 py-3 text-[13px] tracking-[0.06em] text-bg">
             <Plus size={14} /> Add New Blog

@@ -23,13 +23,13 @@ export function ReferralDashboard() {
         ].map(([v, l]) => (
           <div key={l} className="bg-bg p-7 text-center">
             <div className="font-condensed text-[40px] font-semibold">{v}</div>
-            <div className="mt-1.5 text-[11px] tracking-[0.14em] text-muted">{l}</div>
+            <div className="mt-1.5 text-[11px] tracking-[0.14em] text-ink">{l}</div>
           </div>
         ))}
       </div>
       <div id="ref-share" className="mt-8 flex flex-wrap items-center justify-between gap-4 border border-ink/10 p-6">
         <div>
-          <div className="mb-1.5 text-[10px] tracking-[0.18em] text-muted">Your personal link</div>
+          <div className="mb-1.5 text-[10px] tracking-[0.18em] text-ink">Your personal link</div>
           <span className="font-condensed text-[19px]">{link}</span>
         </div>
         <div className="flex flex-wrap gap-2.5">

@@ -10,26 +10,38 @@ function formatDate(d: string | null) {
   return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-export function BlogCard({ blog, large = false }: { blog: Blog; large?: boolean }) {
+/** Every card renders at an identical size regardless of title/excerpt length: a fixed 3:2 image box
+    (measured against the actual uploaded cover photos, which cluster around a 3:2 ratio — much closer
+    than 16:9, so "contain" only letterboxes slightly instead of leaving large empty bands), a
+    title/excerpt clamped to a consistent number of lines, and "Read Story" pinned to the bottom via
+    mt-auto. All cards share one size — there is no "large"/featured variant in the grid. */
+export function BlogCard({ blog }: { blog: Blog }) {
   return (
-    <Link href={"/blog/" + blog.slug} className="group flex flex-col">
-      <AnimatedCard>
-        <ImageReveal className="border border-ink/10">
-          <Photo src={blog.coverImage} alt={blog.title} ratio={large ? "16/10" : "4/3"} className="transition-transform duration-500 group-hover:scale-[1.03]" />
+    <Link href={"/blog/" + blog.slug} className="group flex h-full flex-col">
+      <AnimatedCard className="flex h-full flex-col border border-ink/10 bg-bg transition-colors duration-300 hover:border-ink/25">
+        <ImageReveal>
+          <Photo
+            src={blog.coverImage}
+            alt={blog.title}
+            ratio="3/2"
+            fit="contain"
+            className="bg-bg transition-transform duration-500 group-hover:scale-[1.03]"
+          />
         </ImageReveal>
-        <div className="pt-4">
-          <div className="mb-2 text-[11px] tracking-[0.14em] text-accent">{blog.category}</div>
-          <div className={"mb-2 font-condensed font-semibold leading-tight text-ink " + (large ? "text-[26px]" : "text-[21px]")}>{blog.title}</div>
-          <p className="mb-3 text-[14px] leading-relaxed text-muted">{blog.excerpt}</p>
-          <div className="mb-2.5 text-[11px] tracking-[0.1em] text-muted2">
-            {formatDate(blog.publishedAt)} · {blog.readingTime} read
+        <div className="flex flex-1 flex-col p-5">
+          <div className="mb-2 text-[11px] font-semibold tracking-[0.14em] text-accent">{blog.category}</div>
+          <div className="mb-2 line-clamp-2 min-h-[48px] font-condensed text-[19px] font-semibold leading-tight text-ink">{blog.title}</div>
+          <p className="mb-4 line-clamp-3 min-h-[66px] text-[13.5px] leading-relaxed text-muted">{blog.excerpt}</p>
+          <div className="mt-auto">
+            <div className="mb-2.5 text-[11px] tracking-[0.1em] text-muted2">
+              {formatDate(blog.publishedAt)} · {blog.readingTime} read
+            </div>
+            <span className="inline-flex items-center gap-1.5 text-[13px] font-medium tracking-[0.06em] text-ink">
+              Read More <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" />
+            </span>
           </div>
-          <span className="inline-flex items-center gap-1.5 text-[13px] tracking-[0.06em] text-ink">
-            Read Story <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" />
-          </span>
         </div>
       </AnimatedCard>
     </Link>
   );
 }
-

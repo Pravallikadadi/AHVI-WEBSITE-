@@ -10,6 +10,18 @@
   font-display: swap;
 }
 
+/* Self-hosted directly (bypassing next/font/google) — that pipeline was generating a corrupted
+   unicode-range token ("U+??" instead of a real codepoint range) for Anton's basic-Latin subset on
+   this build, which made every browser reject that @font-face block and silently fall back to a
+   system sans-serif for the "AHVI" wordmark. No unicode-range restriction here, so it always applies. */
+@font-face {
+  font-family: "Anton";
+  src: url("/fonts/Anton.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Theme tokens — every color utility (bg-ink, text-muted, border-surface, …) reads these, so light/dark
    is a single variable swap rather than a per-component rewrite. Values are "R G B" triples so Tailwind's
    `/opacity` modifiers keep working (rgb(var(--x) / <alpha-value>)). */
@@ -73,7 +85,7 @@ html.lenis.lenis-stopped {
 }
 
 html {
-  font-family: 'abcNormal', system-ui, sans-serif;
+  font-family: 'abcNormal';
   --font-size-xs: 0.688rem;
   --font-size-sm: 0.875rem;
   --font-size-base: 1rem;
@@ -98,10 +110,11 @@ body {
 h1, h2, h3 {
   letter-spacing: 0;
   line-height: 1.08;
+  overflow-wrap: break-word;
 }
 
 small, .label, .text-label {
-  font-family: 'abcNormal', system-ui, sans-serif;
+  font-family: 'abcNormal';
   font-size: var(--font-size-xs);
   line-height: 1rem;
   font-weight: 400;
@@ -118,9 +131,32 @@ small, .label, .text-label {
 }
 
 .ahvi-wordmark {
-    -webkit-text-stroke: .4px currentColor;
-    font-family: anton;
-    font-weight: 800;
+    font-family: "Anton", sans-serif !important;
+    font-weight: 400 !important;
+    font-style: normal;
+}
+
+/* Content-context AHVI mentions (body copy, cards, legal-page eyebrows) — visually lighter than the
+   header/footer/CTA logo marks. Anton ships a single static weight, so browsers can't actually thin
+   its strokes via font-weight; opacity is what does the "lighter" work here. Never applied to the
+   navbar, footer brand lockup, or ahvi-cta-block — those keep .ahvi-wordmark at full weight/opacity. */
+.ahvi-wordmark-light {
+    opacity: 0.78;
+}
+
+/* CTA-only emphasis — synthesized bold on top of Anton's one real weight, so the CTA wordmark reads
+   heavier than the lighter content-context mentions above. */
+.ahvi-wordmark-strong {
+    font-weight: 700 !important;
+}
+
+/* Hides the scrollbar on horizontally-swipeable rails while keeping touch/drag/wheel scrolling fully functional. */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }
 
 /* Shared brand-gradient chip — pale in light mode, deep in dark mode, purely from the vars above. */
@@ -172,7 +208,8 @@ small, .label, .text-label {
   transition: opacity 0.4s ease;
 }
 
-.spark-card:hover .spark-card__border {
+.spark-card:hover .spark-card__border,
+.spark-card.is-active .spark-card__border {
   opacity: 1;
 }
 
@@ -188,7 +225,8 @@ small, .label, .text-label {
   transition: background-position 0.9s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.spark-card:hover .spark-card__sheen {
+.spark-card:hover .spark-card__sheen,
+.spark-card.is-active .spark-card__sheen {
   background-position: -60% 0;
 }
 

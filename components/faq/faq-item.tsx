@@ -3,6 +3,7 @@ import { useId } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { Plus, Minus } from "lucide-react";
 import type { FaqItem } from "@/lib/faq-data";
+import { highlightAhvi } from "@/lib/ahvi-text";
 
 export function FAQItem({ item, open, onToggle }: { item: FaqItem; open: boolean; onToggle: () => void }) {
   const id = useId();
@@ -16,7 +17,7 @@ export function FAQItem({ item, open, onToggle }: { item: FaqItem; open: boolean
         onClick={onToggle}
         className="flex w-full items-center justify-between gap-4 py-5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
       >
-        <span className="font-condensed text-[16.5px] font-medium text-ink">{item.question}</span>
+        <span className="font-condensed text-[16.5px] font-medium text-ink">{highlightAhvi(item.question)}</span>
         <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-ink/15 text-ink">
           {open ? <Minus size={14} /> : <Plus size={14} />}
         </span>
@@ -32,7 +33,7 @@ export function FAQItem({ item, open, onToggle }: { item: FaqItem; open: boolean
             transition={{ duration: reduce ? 0.01 : 0.3, ease: [0.2, 0.7, 0.2, 1] }}
             className="overflow-hidden"
           >
-            <p className="max-w-[68ch] pb-5 text-[14.5px] leading-relaxed text-muted">{item.answer}</p>
+            <p className="max-w-[68ch] pb-5 text-[14.5px] leading-relaxed text-muted">{highlightAhvi(item.answer)}</p>
           </motion.div>
         )}
       </AnimatePresence>

@@ -16,7 +16,13 @@ export function FeaturedBlog({ blog }: { blog: Blog }) {
       style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 420px), 1fr))" }}
     >
       <div className="overflow-hidden">
-        <Photo src={blog.coverImage} alt={blog.title} ratio="4/3" className="transition-transform duration-700 ease-out group-hover:scale-[1.04]" />
+        <Photo
+          src={blog.coverImage}
+          alt={blog.title}
+          ratio="3/2"
+          fit="contain"
+          className="transition-transform duration-700 ease-out group-hover:scale-[1.04]"
+        />
       </div>
       <div className="flex flex-col justify-center p-8 sm:p-11">
         <span className="mb-5 w-fit text-[11px] tracking-[0.2em] text-accent">Featured · {blog.category}</span>

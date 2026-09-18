@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { highlightAhvi } from "@/lib/ahvi-text";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -23,8 +24,8 @@ export default function AdminLoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg px-5">
       <form onSubmit={submit} className="w-full max-w-[380px] rounded-2xl border border-ink/10 p-8">
-        <div className="mb-1 font-condensed text-[26px] font-bold tracking-[0.08em]">AHVI ADMIN</div>
-        <p className="mb-6 text-[13.5px] text-muted">Sign in to manage the AHVI blog.</p>
+        <div className="mb-1 font-condensed text-[26px] font-bold tracking-[0.08em]">{highlightAhvi("AHVI ADMIN")}</div>
+        <p className="mb-6 text-[13.5px] text-muted">{highlightAhvi("Sign in to manage the AHVI blog.")}</p>
         <label className="mb-1.5 block text-[11px] tracking-[0.14em] text-muted">Password</label>
         <input
           type="password"

@@ -5,14 +5,17 @@ export function SparkCard({
   children,
   className,
   delay = 0,
+  active,
 }: {
   children: React.ReactNode;
   className?: string;
   delay?: number;
+  /** Forces the border/sheen into their hover-like state — used for JS-driven "active" highlighting (e.g. an auto-advancing carousel) rather than actual pointer hover. */
+  active?: boolean;
 }) {
   return (
     <div
-      className="spark-card h-full"
+      className={cn("spark-card h-full", active && "is-active")}
       style={{ ["--spark-delay" as string]: `${-delay}s` }}
     >
       <span className="spark-card__border" aria-hidden />

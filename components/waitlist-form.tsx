@@ -6,6 +6,7 @@ import { BlueprintFrame } from "@/components/blueprint-frame";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { highlightAhvi } from "@/lib/ahvi-text";
 
 const INTERESTS = ["Style", "Prep", "Plan"] as const;
 
@@ -28,7 +29,7 @@ export function WaitlistForm() {
       <BlueprintFrame className="p-8 text-center sm:p-11">
         <CheckCircle2 size={30} className="mx-auto mb-4 text-accent" strokeWidth={1.5} />
         <h2 className="mb-2.5 font-condensed text-[30px] font-semibold">You're on the list.</h2>
-        <p className="mb-5 text-[14.5px] text-muted">We'll reach out as AHVI opens up seats.</p>
+        <p className="mb-5 text-[14.5px] text-muted">{highlightAhvi("We'll reach out as AHVI opens up seats.")}</p>
         <Link href="/" className="text-[12.5px] tracking-[0.1em] text-accent">
           Back home
         </Link>

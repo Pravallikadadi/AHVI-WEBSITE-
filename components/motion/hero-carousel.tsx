@@ -78,7 +78,7 @@ export const HeroCarousel = forwardRef<HeroCarouselHandle, { slides: HeroSlide[]
           return (
             <motion.div
               key={s.id}
-              className={cn("absolute left-1/2 top-0 h-full w-[72%]", clickable && "cursor-pointer")}
+              className={cn("absolute left-1/2 top-0 h-full w-[99%] sm:w-[84%]", clickable && "cursor-pointer")}
               style={{ zIndex: 20 - abs, transformStyle: "preserve-3d" }}
               animate={{
                 x: reduce ? "-50%" : `calc(-50% + ${diff * 62}%)`,
@@ -117,7 +117,7 @@ export const HeroCarousel = forwardRef<HeroCarouselHandle, { slides: HeroSlide[]
                   fill
                   sizes="(min-width: 1024px) 55vw, 90vw"
                   priority={isActive}
-                  className="object-contain p-4 sm:p-6"
+                  className="object-contain p-1 sm:p-3"
                 />
               </div>
             </motion.div>
@@ -125,7 +125,7 @@ export const HeroCarousel = forwardRef<HeroCarouselHandle, { slides: HeroSlide[]
         })}
       </div>
 
-      <div className="mt-7 flex items-center justify-between gap-6">
+      <div className="mt-7 flex items-center justify-between gap-6 px-5 sm:px-0">
         <AnimatePresence mode="wait">
           <motion.p
             key={slides[active].id}

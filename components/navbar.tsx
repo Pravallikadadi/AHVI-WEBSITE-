@@ -57,10 +57,10 @@ export function Navbar() {
           <Link
             href="/"
             onClick={() => setOpen(false)}
-            className="ahvi-wordmark mr-auto flex items-center gap-1.5 font-sans text-[28px] font-bold tracking-[0.08em] text-ink sm:text-[32px]"
+            className="mr-auto flex items-center gap-1.5 text-[28px] tracking-[0.08em] text-ink sm:text-[32px]"
           >
             <AhviLogo size={26} />
-            AHVI
+            <span className="ahvi-wordmark">AHVI</span>
           </Link>
           <nav className="hidden items-center gap-6 md:flex">
             {navLinks.map((l) => {
@@ -104,9 +104,9 @@ export function Navbar() {
         // should read the same regardless of which theme the visitor is browsing in.
         <div className="fixed inset-0 z-[80] flex flex-col overflow-y-auto bg-[#0A0A0A] p-6 text-white sm:p-10">
           <div className="flex items-center justify-between">
-            <span className="ahvi-wordmark flex items-center gap-1.5 font-sans text-[38px] font-bold tracking-[0.1em]">
+            <span className="flex items-center gap-1.5 text-[38px] tracking-[0.1em]">
               <AhviLogo size={30} className="text-white" />
-              AHVI
+              <span className="ahvi-wordmark">AHVI</span>
             </span>
             <div className="flex items-center gap-2.5">
               <ThemeToggle className="border-white/25 text-white hover:bg-white/10" />

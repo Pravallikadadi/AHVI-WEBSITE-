@@ -10,6 +10,23 @@ export type Blog = {
   excerpt: string;
   content: string;
   coverImage: string;
+  /** Wide hero image for the story detail page. Falls back to coverImage when unset. */
+  heroImage?: string;
+  /** Editorial images interleaved between article sections on the story detail page. */
+  contentImages?: string[];
+  /** Optional men's/women's shape carousels — used only by posts that need a 5-card swipeable
+      comparison grid (e.g. the body shape guide) instead of the standard content images. */
+  shapeCarousels?: {
+    men: { label: string; image: string }[];
+    women: { label: string; image: string }[];
+  };
+  /** Generic single-set image carousel (e.g. the 6 AHVI style personas) — rendered right after
+      the article section whose heading matches `afterHeading`. */
+  galleryCarousel?: {
+    title: string;
+    afterHeading: string;
+    items: { label: string; image: string }[];
+  };
   category: string;
   author: string;
   readingTime: string;
@@ -26,6 +43,17 @@ export type BlogInput = {
   excerpt: string;
   content: string;
   coverImage: string;
+  heroImage?: string;
+  contentImages?: string[];
+  shapeCarousels?: {
+    men: { label: string; image: string }[];
+    women: { label: string; image: string }[];
+  };
+  galleryCarousel?: {
+    title: string;
+    afterHeading: string;
+    items: { label: string; image: string }[];
+  };
   category: string;
   author: string;
   readingTime: string;
