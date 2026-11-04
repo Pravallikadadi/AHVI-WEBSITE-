@@ -210,7 +210,47 @@ assert(classifyTrafficSource("") === "direct", "Direct traffic classified");
 
 // 5. Blog Schema Validation
 console.log("\n[5] Blog Schema Validation:");
-const validPublishedBlog = blogInputSchema.safeParse({
+
+// Test a: Draft without coverImage is accepted
+const draftWithoutCoverA = blogInputSchema.safeParse({
+  title: "Draft Article In Progress",
+  content: "<p>Draft notes about minimalist dressing.</p>",
+  category: "Tips",
+  status: "draft",
+  // coverImage completely omitted
+});
+assert(draftWithoutCoverA.success, "a. Draft without coverImage is accepted (omitted coverImage)");
+
+const draftWithEmptyCover = blogInputSchema.safeParse({
+  title: "Draft Article With Empty Image String",
+  content: "<p>Draft notes with empty string cover image.</p>",
+  coverImage: "",
+  category: "Tips",
+  status: "draft",
+});
+assert(draftWithEmptyCover.success, "a. Draft without coverImage is accepted (empty string coverImage)");
+
+// Test b: Published article without coverImage is rejected
+const publishedWithoutCoverOmitted = blogInputSchema.safeParse({
+  title: "Article Attempting to Publish With Missing Image",
+  content: "<p>Some text here.</p>",
+  category: "Fashion",
+  status: "published",
+  // coverImage completely omitted
+});
+assert(!publishedWithoutCoverOmitted.success, "b. Published article without coverImage is rejected (omitted coverImage)");
+
+const publishedWithEmptyCover = blogInputSchema.safeParse({
+  title: "Article Attempting to Publish With Empty String Image",
+  content: "<p>Some text here.</p>",
+  coverImage: "",
+  category: "Fashion",
+  status: "published",
+});
+assert(!publishedWithEmptyCover.success, "b. Published article without coverImage is rejected (empty string coverImage)");
+
+// Test c: Published article with coverImage is accepted
+const publishedWithCover = blogInputSchema.safeParse({
   title: "The Future of Personal Styling",
   content: "<p>Artificial intelligence is redefining modern wardrobes.</p>",
   coverImage: "/images/blogs/blog-01.jpg",
@@ -219,24 +259,7 @@ const validPublishedBlog = blogInputSchema.safeParse({
   readingTime: "5 min",
   status: "published",
 });
-assert(validPublishedBlog.success, "Published blog with cover image accepted");
-
-const validDraftBlogWithoutCover = blogInputSchema.safeParse({
-  title: "Draft Article In Progress",
-  content: "<p>Draft notes about minimalist dressing.</p>",
-  category: "Tips",
-  status: "draft",
-});
-assert(validDraftBlogWithoutCover.success, "Draft blog without cover image accepted");
-
-const invalidPublishedBlogWithoutCover = blogInputSchema.safeParse({
-  title: "Article Attempting to Publish Without Image",
-  content: "<p>Some text here.</p>",
-  coverImage: "",
-  category: "Fashion",
-  status: "published",
-});
-assert(!invalidPublishedBlogWithoutCover.success, "Published blog without cover image rejected by schema");
+assert(publishedWithCover.success, "c. Published article with coverImage is accepted");
 
 // 6. CSV Export Generator
 console.log("\n[6] CSV Export Engine:");

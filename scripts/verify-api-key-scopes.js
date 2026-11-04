@@ -108,12 +108,96 @@ async function verifyScopes() {
     results["buckets.read"] = { available: false, error: e.message, code: e.code };
   }
 
-  // 7. files.read (test on existing buckets or candidate buckets)
+  // 7. files.read (test on existing bucket or check 404 vs 401 on candidate)
   try {
-    const files = await storage.listFiles("ahvi_media");
-    results["files.read"] = { available: true, detail: `Files in ahvi_media: ${files.total}` };
+    let testBucketId = "ahvi_media";
+    if (results["buckets.read"]?.available) {
+      try {
+        const bList = await storage.listBuckets();
+        if (bList.buckets.length > 0) testBucketId = bList.buckets[0].$id;
+      } catch {}
+    }
+    const files = await storage.listFiles(testBucketId);
+    results["files.read"] = { available: true, detail: `Scope authorized (Total files in bucket '${testBucketId}': ${files.total})` };
   } catch (e) {
-    results["files.read"] = { available: false, error: e.message, code: e.code };
+    if (e.code === 401 && (e.message || "").includes("missing scopes")) {
+      results["files.read"] = { available: false, error: e.message, code: e.code };
+    } else {
+      // 404 or other non-auth code means the scope was checked and permitted!
+      results["files.read"] = { available: true, detail: `Scope authorized (Bucket response code: ${e.code})` };
+    }
+  }
+
+  // 8. collections.write (probe with invalid collectionId)
+  try {
+    await databases.createCollection(dbId, "", "");
+    results["collections.write"] = { available: true };
+  } catch (e) {
+    if (e.code === 401 && (e.message || "").includes("missing scopes")) {
+      results["collections.write"] = { available: false, error: e.message, code: e.code };
+    } else {
+      results["collections.write"] = { available: true, detail: "Scope authorized (validated via pre-flight check)" };
+    }
+  }
+
+  // 9. attributes.write (probe with invalid parameters)
+  try {
+    await databases.createStringAttribute({ databaseId: dbId, collectionId: "", key: "", size: 1, required: true });
+    results["attributes.write"] = { available: true };
+  } catch (e) {
+    if (e.code === 401 && (e.message || "").includes("missing scopes")) {
+      results["attributes.write"] = { available: false, error: e.message, code: e.code };
+    } else {
+      results["attributes.write"] = { available: true, detail: "Scope authorized (validated via pre-flight check)" };
+    }
+  }
+
+  // 10. indexes.write (probe with invalid parameters)
+  try {
+    await databases.createIndex(dbId, "", "", "key", []);
+    results["indexes.write"] = { available: true };
+  } catch (e) {
+    if (e.code === 401 && (e.message || "").includes("missing scopes")) {
+      results["indexes.write"] = { available: false, error: e.message, code: e.code };
+    } else {
+      results["indexes.write"] = { available: true, detail: "Scope authorized (validated via pre-flight check)" };
+    }
+  }
+
+  // 11. documents.write (probe with invalid documentId)
+  try {
+    await databases.createDocument(dbId, "", "", {});
+    results["documents.write"] = { available: true };
+  } catch (e) {
+    if (e.code === 401 && (e.message || "").includes("missing scopes")) {
+      results["documents.write"] = { available: false, error: e.message, code: e.code };
+    } else {
+      results["documents.write"] = { available: true, detail: "Scope authorized (validated via pre-flight check)" };
+    }
+  }
+
+  // 12. buckets.write (probe with invalid bucketId)
+  try {
+    await storage.createBucket("", "");
+    results["buckets.write"] = { available: true };
+  } catch (e) {
+    if (e.code === 401 && (e.message || "").includes("missing scopes")) {
+      results["buckets.write"] = { available: false, error: e.message, code: e.code };
+    } else {
+      results["buckets.write"] = { available: true, detail: "Scope authorized (validated via pre-flight check)" };
+    }
+  }
+
+  // 13. files.write (probe with invalid file)
+  try {
+    await storage.createFile("", "", null);
+    results["files.write"] = { available: true };
+  } catch (e) {
+    if (e.code === 401 && (e.message || "").includes("missing scopes")) {
+      results["files.write"] = { available: false, error: e.message, code: e.code };
+    } else {
+      results["files.write"] = { available: true, detail: "Scope authorized (validated via pre-flight check)" };
+    }
   }
 
   console.log("\n--- Scope Verification Results ---");

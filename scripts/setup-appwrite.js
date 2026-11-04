@@ -212,7 +212,7 @@ async function main() {
         { key: "name", type: "string", size: 100, required: true },
         { key: "email", type: "email", required: true },
         { key: "phone", type: "string", size: 50, required: false },
-        { key: "interests", type: "string", size: 50, required: false, isArray: true },
+        { key: "interests", type: "string", size: 100, required: false, isArray: true },
         { key: "referralCode", type: "string", size: 50, required: false },
         { key: "status", type: "string", size: 50, required: false, default: "pending" },
         { key: "createdAt", type: "string", size: 50, required: true },
@@ -292,7 +292,9 @@ async function main() {
         { key: "slug", type: "string", size: 255, required: true },
         { key: "excerpt", type: "string", size: 1500, required: false },
         { key: "content", type: "string", size: 100000, required: true },
-        { key: "coverImage", type: "string", size: 500, required: true },
+        // coverImage is optional at the database level so drafts can be created without one;
+        // application validation (Zod & admin UI) enforces coverImage as mandatory for published articles.
+        { key: "coverImage", type: "string", size: 500, required: false },
         { key: "heroImage", type: "string", size: 500, required: false },
         { key: "contentImages", type: "string", size: 500, required: false, isArray: true },
         { key: "shapeCarousels", type: "string", size: 20000, required: false },
@@ -302,7 +304,7 @@ async function main() {
         { key: "readingTime", type: "string", size: 50, required: true },
         { key: "featured", type: "boolean", required: false, default: false },
         { key: "tags", type: "string", size: 100, required: false, isArray: true },
-        { key: "status", type: "string", size: 50, required: true, default: "draft" },
+        { key: "status", type: "string", size: 50, required: true },
         { key: "publishedAt", type: "string", size: 50, required: false },
         { key: "createdAt", type: "string", size: 50, required: true },
         { key: "updatedAt", type: "string", size: 50, required: true },
@@ -349,7 +351,11 @@ async function main() {
       }
       if (!attrExists) {
         dryRunReport.proposedAttributes.push({ collection: spec.id, ...attr });
-        console.log(`    + Proposed Attribute: ${spec.id}.${attr.key} (${attr.type}, required: ${attr.required})`);
+        const typeDesc = attr.isArray ? `${attr.type} array` : attr.type;
+        const sizeDesc = attr.size ? `, size: ${attr.size}` : "";
+        console.log(
+          `    + Proposed Attribute: ${spec.id}.${attr.key} (${typeDesc}${sizeDesc}, required: ${attr.required})`
+        );
       }
     }
 
@@ -384,6 +390,11 @@ async function main() {
       console.log(`    ↳ Permissions: [Permission.read(Role.any())] (Public view only, writes admin-only)`);
       console.log(`    ↳ Max File Size: 8MB`);
       console.log(`    ↳ Allowed Extensions: jpg, jpeg, png, webp`);
+    } else if (e.code === 401 || (e.message && e.message.includes("missing scopes"))) {
+      dryRunReport.storageBucketAction = "PENDING_PERMISSIONS (Requires buckets.read & buckets.write scopes)";
+      console.log(`• Bucket inspection notice: Current API key lacks 'buckets.read' scope (HTTP 401).`);
+      console.log(`    ↳ Scope Requirement: 'buckets.read' (to inspect '${BUCKET_ID}') & 'buckets.write' (to create if missing).`);
+      console.log(`    ↳ Bucket Specifications: ID: "${BUCKET_ID}", Max Size: 8MB, Allowed: jpg, jpeg, png, webp`);
     } else {
       console.log(`• Bucket notice: ${e.message}`);
     }
@@ -465,69 +476,109 @@ async function main() {
 
   // 2. Create missing attributes
   for (const attr of dryRunReport.proposedAttributes) {
-    console.log(`  + Creating attribute ${attr.collection}.${attr.key}...`);
+    console.log(
+      `  + Creating attribute ${attr.collection}.${attr.key} (${attr.isArray ? "array " : ""}${attr.type})...`
+    );
     if (attr.type === "email") {
-      await databases.createEmailAttribute(TARGET_DB_ID, attr.collection, attr.key, attr.required);
+      await databases.createEmailAttribute({
+        databaseId: TARGET_DB_ID,
+        collectionId: attr.collection,
+        key: attr.key,
+        required: attr.required,
+        xdefault: attr.required ? undefined : attr.default,
+        array: Boolean(attr.isArray),
+      });
     } else if (attr.type === "boolean") {
-      await databases.createBooleanAttribute(
-        TARGET_DB_ID,
-        attr.collection,
-        attr.key,
-        attr.required,
-        attr.default
-      );
+      await databases.createBooleanAttribute({
+        databaseId: TARGET_DB_ID,
+        collectionId: attr.collection,
+        key: attr.key,
+        required: attr.required,
+        xdefault: attr.required ? undefined : attr.default,
+        array: Boolean(attr.isArray),
+      });
     } else if (attr.type === "string") {
-      await databases.createStringAttribute(
-        TARGET_DB_ID,
-        attr.collection,
-        attr.key,
-        attr.size,
-        attr.required,
-        attr.default,
-        Boolean(attr.isArray)
-      );
+      await databases.createStringAttribute({
+        databaseId: TARGET_DB_ID,
+        collectionId: attr.collection,
+        key: attr.key,
+        size: attr.size,
+        required: attr.required,
+        xdefault: attr.required ? undefined : attr.default,
+        array: Boolean(attr.isArray),
+      });
     }
     await sleep(800);
   }
 
+  // Helper to ensure Appwrite background attribute migrations are finished before index/doc operations
+  async function waitForAttributesReady(collectionId, maxWaitSec = 60) {
+    process.stdout.write(`  ⏳ Waiting for attributes in ${collectionId} to be available`);
+    const start = Date.now();
+    while (Date.now() - start < maxWaitSec * 1000) {
+      try {
+        const res = await databases.listAttributes(TARGET_DB_ID, collectionId);
+        const processing = res.attributes.filter((a) => a.status === "processing");
+        if (processing.length === 0) {
+          console.log(` -> Ready (${res.attributes.length} attributes available).`);
+          return true;
+        }
+      } catch (e) {}
+      process.stdout.write(".");
+      await sleep(1500);
+    }
+    console.log(" -> Proceeding.");
+  }
+
   // 3. Create missing indexes
-  for (const idx of dryRunReport.proposedIndexes) {
-    console.log(`  + Creating index ${idx.collection}.${idx.key}...`);
-    try {
-      await databases.createIndex(
-        TARGET_DB_ID,
-        idx.collection,
-        idx.key,
-        idx.type,
-        idx.attributes,
-        idx.orders || []
-      );
-      await sleep(1000);
-    } catch (err) {
-      console.warn(`    ⚠️ Notice on index ${idx.key}: ${err.message}`);
+  if (dryRunReport.proposedIndexes.length > 0) {
+    console.log("\nWaiting for collection attributes to finalize before creating indexes...");
+    const colsWithIndexes = new Set(dryRunReport.proposedIndexes.map((idx) => idx.collection));
+    for (const cId of colsWithIndexes) {
+      await waitForAttributesReady(cId);
+    }
+
+    for (const idx of dryRunReport.proposedIndexes) {
+      console.log(`  + Creating index ${idx.collection}.${idx.key}...`);
+      try {
+        await databases.createIndex({
+          databaseId: TARGET_DB_ID,
+          collectionId: idx.collection,
+          key: idx.key,
+          type: idx.type,
+          attributes: idx.attributes,
+          orders: idx.orders || [],
+        });
+        await sleep(1000);
+      } catch (err) {
+        console.warn(`    ⚠️ Notice on index ${idx.key}: ${err.message}`);
+      }
     }
   }
 
   // 4. Create storage bucket if missing
   if (dryRunReport.storageBucketAction === "CREATE") {
-    console.log(`+ Creating storage bucket '${BUCKET_ID}'...`);
-    await storage.createBucket(
-      BUCKET_ID,
-      "AHVI Media & Blog Assets",
-      [Permission.read(Role.any())],
-      false,
-      true,
-      8 * 1024 * 1024,
-      ["jpg", "jpeg", "png", "webp"]
-    );
+    console.log(`\n+ Creating storage bucket '${BUCKET_ID}'...`);
+    await storage.createBucket({
+      bucketId: BUCKET_ID,
+      name: "AHVI Media & Blog Assets",
+      permissions: [Permission.read(Role.any())],
+      fileSecurity: false,
+      enabled: true,
+      maximumFileSize: 8 * 1024 * 1024,
+      allowedFileExtensions: ["jpg", "jpeg", "png", "webp"],
+    });
     await sleep(1000);
+    console.log(`✓ Storage bucket '${BUCKET_ID}' created successfully.`);
   }
 
   // 5. Migrate blogs (with unique slug checking and per-document security)
   if (dryRunReport.blogsProposedForImport > 0 && fs.existsSync(blogsPath)) {
     const localBlogs = JSON.parse(fs.readFileSync(blogsPath, "utf8"));
-    console.log(`\nImporting ${dryRunReport.blogsProposedForImport} blog articles...`);
-    await sleep(2000);
+    console.log(`\nWaiting for '${COLLECTIONS.blogs}' attributes before importing articles...`);
+    await waitForAttributesReady(COLLECTIONS.blogs);
+
+    console.log(`Importing ${dryRunReport.blogsProposedForImport} blog articles...`);
 
     for (const blog of localBlogs) {
       try {

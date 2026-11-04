@@ -60,7 +60,7 @@ export function BlogEditor({ blog }: { blog?: Blog }) {
       <div className="grid content-start gap-6">
         <div>
           <label className="mb-1.5 block text-[11px] tracking-[0.14em] text-muted">Blog cover image</label>
-          <ImageUploader value={form.coverImage} onChange={(url) => set("coverImage", url)} />
+          <ImageUploader value={form.coverImage || ""} onChange={(url) => set("coverImage", url)} />
         </div>
         <div>
           <label className="mb-1.5 block text-[11px] tracking-[0.14em] text-muted">Blog title</label>

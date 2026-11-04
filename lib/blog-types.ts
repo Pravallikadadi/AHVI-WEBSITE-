@@ -42,7 +42,7 @@ export type BlogInput = {
   title: string;
   excerpt: string;
   content: string;
-  coverImage: string;
+  coverImage?: string;
   heroImage?: string;
   contentImages?: string[];
   shapeCarousels?: {
