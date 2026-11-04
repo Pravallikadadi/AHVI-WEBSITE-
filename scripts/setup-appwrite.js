@@ -1,29 +1,21 @@
 /**
- * AHVI - Automated Appwrite Backend Setup & Migration Script
+ * AHVI - Safe, Non-Destructive Appwrite Backend Setup & Migration Script
  *
- * This script:
- * 1. Connects to your Appwrite project via node-appwrite
- * 2. Creates the Database (ahvi_db)
- * 3. Creates all Collections with required attributes, types, and indexes:
- *    - contacts
- *    - waitlist
- *    - surveys
- *    - subscribers
- *    - analytics
- *    - blogs (with public read permission)
- * 4. Creates the Storage Bucket (ahvi_media) for blog images (public read, JPG/PNG/WebP, 8MB max)
- * 5. Migrates all 30 articles from data/blogs.json into Appwrite Database
- * 6. Sets up the initial Admin user account in Appwrite
- *
- * Usage:
- *   node scripts/setup-appwrite.js
+ * CRITICAL SAFETY RULES:
+ * 1. REUSES existing database 'ahvi_db' (ID: 69958fe40017ccd03111) if it exists.
+ * 2. NEVER deletes, recreates, or overwrites existing databases.
+ * 3. NEVER drops or overwrites existing collections.
+ * 4. NEVER deletes or modifies existing documents or data.
+ * 5. Reuses existing collections and adds only missing attributes & indexes.
+ * 6. Checks unique slugs before adding blog stories (zero duplication).
+ * 7. Completely idempotent - safe to execute multiple times.
  */
 
 const fs = require("fs");
 const path = require("path");
 const { Client, Databases, Storage, Users, ID, Permission, Role, Query } = require("node-appwrite");
 
-// Simple dotenv parser
+// Load .env.local or .env
 function loadEnv() {
   const envFiles = [".env.local", ".env"];
   for (const f of envFiles) {
@@ -46,10 +38,30 @@ function loadEnv() {
 
 loadEnv();
 
-const ENDPOINT = process.env.APPWRITE_ENDPOINT || "https://cloud.appwrite.io/v1";
-const PROJECT_ID = process.env.APPWRITE_PROJECT_ID;
+// Also fallback to ~/.appwrite/prefs.json if available
+try {
+  const userHome = process.env.USERPROFILE || process.env.HOME || "C:\\Users\\kavya";
+  const prefsPath = path.join(userHome, ".appwrite", "prefs.json");
+  if (fs.existsSync(prefsPath)) {
+    const prefs = JSON.parse(fs.readFileSync(prefsPath, "utf-8"));
+    if (!process.env.APPWRITE_PROJECT_ID && prefs.current) {
+      process.env.APPWRITE_PROJECT_ID = prefs.current;
+    }
+    if (!process.env.APPWRITE_API_KEY && prefs[prefs.current]?.key) {
+      process.env.APPWRITE_API_KEY = prefs[prefs.current].key;
+    }
+    if (!process.env.APPWRITE_ENDPOINT && prefs[prefs.current]?.endpoint) {
+      process.env.APPWRITE_ENDPOINT = prefs[prefs.current].endpoint;
+    }
+  }
+} catch (e) {
+  // ignore
+}
+
+const ENDPOINT = process.env.APPWRITE_ENDPOINT || "https://fra.cloud.appwrite.io/v1";
+const PROJECT_ID = process.env.APPWRITE_PROJECT_ID || "69958f25003190519213";
 const API_KEY = process.env.APPWRITE_API_KEY;
-const DATABASE_ID = process.env.APPWRITE_DATABASE_ID || "ahvi_db";
+const TARGET_DB_ID = process.env.APPWRITE_DATABASE_ID || "69958fe40017ccd03111"; // Known existing ahvi_db
 const BUCKET_ID = process.env.APPWRITE_STORAGE_BUCKET_ID || "ahvi_media";
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@ahvi.com";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "ahvi-admin";
@@ -59,7 +71,7 @@ const COLLECTIONS = {
   waitlist: process.env.APPWRITE_COLLECTION_WAITLIST || "waitlist",
   surveys: process.env.APPWRITE_COLLECTION_SURVEYS || "surveys",
   subscribers: process.env.APPWRITE_COLLECTION_SUBSCRIBERS || "subscribers",
-  analytics: process.env.APPWRITE_COLLECTION_ANALYTICS || "analytics",
+  analytics: process.env.APPWRITE_COLLECTION_ANALYTICS || "analytics_events",
   blogs: process.env.APPWRITE_COLLECTION_BLOGS || "blogs",
 };
 
@@ -69,110 +81,163 @@ async function sleep(ms) {
 
 async function main() {
   console.log("==================================================");
-  console.log("   AHVI - Appwrite Backend Setup & Migration");
+  console.log("  AHVI - Non-Destructive Appwrite Integration     ");
   console.log("==================================================");
 
   if (!PROJECT_ID || !API_KEY) {
     console.error("\n❌ Error: Missing Appwrite configuration!");
-    console.error("Please ensure .env or environment contains:");
-    console.error("  APPWRITE_PROJECT_ID=your_project_id");
-    console.error("  APPWRITE_API_KEY=your_server_api_key");
-    console.error("  APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1\n");
+    console.error("Please ensure APPWRITE_PROJECT_ID and APPWRITE_API_KEY are configured.");
     process.exit(1);
   }
 
-  console.log(`\nConnecting to Appwrite:`);
-  console.log(`• Endpoint:   ${ENDPOINT}`);
-  console.log(`• Project ID: ${PROJECT_ID}`);
-  console.log(`• Database:   ${DATABASE_ID}`);
-  console.log(`• Bucket:     ${BUCKET_ID}\n`);
+  console.log(`Connecting to Appwrite:`);
+  console.log(`• Endpoint:    ${ENDPOINT}`);
+  console.log(`• Project ID:  ${PROJECT_ID}`);
+  console.log(`• Target DB:   ${TARGET_DB_ID}\n`);
 
   const client = new Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(API_KEY);
   const databases = new Databases(client);
   const storage = new Storage(client);
   const users = new Users(client);
 
-  // 1. Ensure Database exists
+  const stats = {
+    databasesReused: [],
+    collectionsReused: [],
+    collectionsCreated: [],
+    attributesCreated: [],
+    attributesSkipped: [],
+    indexesCreated: [],
+    indexesSkipped: [],
+    blogsMigrated: 0,
+    blogsSkipped: 0,
+  };
+
+  // 1. Locate and lock onto existing database
+  let resolvedDbId = TARGET_DB_ID;
   try {
-    await databases.get(DATABASE_ID);
-    console.log(`✓ Database '${DATABASE_ID}' already exists.`);
+    const dbList = await databases.list();
+    const existingDb = dbList.databases.find(
+      (d) =>
+        d.$id === TARGET_DB_ID ||
+        d.name.toLowerCase() === "ahvi db" ||
+        d.name.toLowerCase() === "ahvi_db"
+    );
+
+    if (existingDb) {
+      resolvedDbId = existingDb.$id;
+      stats.databasesReused.push(`${existingDb.name} (${existingDb.$id})`);
+      console.log(`✓ Reusing existing database: "${existingDb.name}" [${existingDb.$id}]`);
+    } else {
+      console.log(`Creating database 'ahvi_db' [${TARGET_DB_ID}]...`);
+      await databases.create(TARGET_DB_ID, "ahvi db");
+      console.log(`✓ Database '${TARGET_DB_ID}' created.`);
+    }
   } catch (err) {
-    console.log(`Creating database '${DATABASE_ID}'...`);
-    await databases.create(DATABASE_ID, "AHVI Database");
-    console.log(`✓ Database '${DATABASE_ID}' created.`);
+    console.log(`Notice on database lookup: ${err.message}. Verifying direct access to ${resolvedDbId}...`);
+    await databases.get(resolvedDbId);
+    stats.databasesReused.push(resolvedDbId);
   }
 
-  // 2. Setup Collections
+  // 2. Collection helper functions
   async function ensureCollection(id, name, permissions = []) {
     try {
-      await databases.getCollection(DATABASE_ID, id);
-      console.log(`✓ Collection '${name}' (${id}) exists.`);
-    } catch {
-      console.log(`Creating collection '${name}' (${id})...`);
-      await databases.createCollection(DATABASE_ID, id, name, permissions);
-      console.log(`✓ Collection '${name}' created.`);
-      await sleep(1000);
+      const coll = await databases.getCollection(resolvedDbId, id);
+      stats.collectionsReused.push(`${name} (${id})`);
+      console.log(`✓ Reusing existing collection: '${name}' (${id})`);
+      return coll;
+    } catch (err) {
+      if (err.code === 404) {
+        console.log(`+ Creating missing collection: '${name}' (${id})...`);
+        const coll = await databases.createCollection(resolvedDbId, id, name, permissions);
+        stats.collectionsCreated.push(`${name} (${id})`);
+        console.log(`✓ Collection '${name}' created.`);
+        await sleep(1000);
+        return coll;
+      }
+      throw err;
     }
   }
 
   async function ensureStringAttr(colId, key, size, required = false, isArray = false, def = undefined) {
     try {
-      await databases.getAttribute(DATABASE_ID, colId, key);
-    } catch {
-      console.log(`  + Attribute '${key}' (${isArray ? "array" : "string"})`);
-      await databases.createStringAttribute(DATABASE_ID, colId, key, size, required, def, isArray);
-      await sleep(800);
+      await databases.getAttribute(resolvedDbId, colId, key);
+      stats.attributesSkipped.push(`${colId}.${key}`);
+    } catch (err) {
+      if (err.code === 404) {
+        console.log(`  + Attribute '${key}' (${isArray ? "array" : "string"})`);
+        await databases.createStringAttribute(resolvedDbId, colId, key, size, required, def, isArray);
+        stats.attributesCreated.push(`${colId}.${key}`);
+        await sleep(800);
+      } else {
+        throw err;
+      }
     }
   }
 
   async function ensureEmailAttr(colId, key, required = false) {
     try {
-      await databases.getAttribute(DATABASE_ID, colId, key);
-    } catch {
-      console.log(`  + Attribute '${key}' (email)`);
-      await databases.createEmailAttribute(DATABASE_ID, colId, key, required);
-      await sleep(800);
+      await databases.getAttribute(resolvedDbId, colId, key);
+      stats.attributesSkipped.push(`${colId}.${key}`);
+    } catch (err) {
+      if (err.code === 404) {
+        console.log(`  + Attribute '${key}' (email)`);
+        await databases.createEmailAttribute(resolvedDbId, colId, key, required);
+        stats.attributesCreated.push(`${colId}.${key}`);
+        await sleep(800);
+      } else {
+        throw err;
+      }
     }
   }
 
   async function ensureBoolAttr(colId, key, required = false, def = false) {
     try {
-      await databases.getAttribute(DATABASE_ID, colId, key);
-    } catch {
-      console.log(`  + Attribute '${key}' (boolean)`);
-      await databases.createBooleanAttribute(DATABASE_ID, colId, key, required, def);
-      await sleep(800);
+      await databases.getAttribute(resolvedDbId, colId, key);
+      stats.attributesSkipped.push(`${colId}.${key}`);
+    } catch (err) {
+      if (err.code === 404) {
+        console.log(`  + Attribute '${key}' (boolean)`);
+        await databases.createBooleanAttribute(resolvedDbId, colId, key, required, def);
+        stats.attributesCreated.push(`${colId}.${key}`);
+        await sleep(800);
+      } else {
+        throw err;
+      }
     }
   }
 
   async function ensureIndex(colId, key, type, attributes, orders = []) {
     try {
-      await databases.getIndex(DATABASE_ID, colId, key);
-    } catch {
-      console.log(`  + Index '${key}' (${type}) on [${attributes.join(", ")}]`);
-      try {
-        await databases.createIndex(DATABASE_ID, colId, key, type, attributes, orders);
-        await sleep(1000);
-      } catch (err) {
-        console.warn(`    ⚠️ Notice on index '${key}': ${err.message}`);
+      await databases.getIndex(resolvedDbId, colId, key);
+      stats.indexesSkipped.push(`${colId}.${key}`);
+    } catch (err) {
+      if (err.code === 404) {
+        console.log(`  + Index '${key}' (${type}) on [${attributes.join(", ")}]`);
+        try {
+          await databases.createIndex(resolvedDbId, colId, key, type, attributes, orders);
+          stats.indexesCreated.push(`${colId}.${key}`);
+          await sleep(1000);
+        } catch (idxErr) {
+          console.warn(`    ⚠️ Notice on index '${key}': ${idxErr.message}`);
+        }
       }
     }
   }
 
   // --- Collection: Contacts ---
-  console.log("\nConfiguring 'contacts' collection...");
+  console.log("\nChecking 'contacts' collection...");
   await ensureCollection(COLLECTIONS.contacts, "Contact Inquiries");
   await ensureStringAttr(COLLECTIONS.contacts, "name", 100, false);
-  await ensureEmailAttr(COLLECTIONS.contacts, "email", true);
+  await ensureEmailAttr(COLLECTIONS.contacts, "email", false);
   await ensureStringAttr(COLLECTIONS.contacts, "subject", 200, false);
-  await ensureStringAttr(COLLECTIONS.contacts, "message", 5000, true);
+  await ensureStringAttr(COLLECTIONS.contacts, "message", 5000, false);
   await ensureStringAttr(COLLECTIONS.contacts, "status", 50, false, false, "new");
-  await ensureStringAttr(COLLECTIONS.contacts, "createdAt", 50, true);
+  await ensureStringAttr(COLLECTIONS.contacts, "createdAt", 50, false);
   await ensureIndex(COLLECTIONS.contacts, "idx_status", "key", ["status"]);
   await ensureIndex(COLLECTIONS.contacts, "idx_createdAt", "key", ["createdAt"], ["DESC"]);
 
   // --- Collection: Waitlist ---
-  console.log("\nConfiguring 'waitlist' collection...");
+  console.log("\nChecking 'waitlist' collection...");
   await ensureCollection(COLLECTIONS.waitlist, "Waitlist Entries");
   await ensureStringAttr(COLLECTIONS.waitlist, "name", 100, true);
   await ensureEmailAttr(COLLECTIONS.waitlist, "email", true);
@@ -186,7 +251,7 @@ async function main() {
   await ensureIndex(COLLECTIONS.waitlist, "idx_createdAt", "key", ["createdAt"], ["DESC"]);
 
   // --- Collection: Surveys ---
-  console.log("\nConfiguring 'surveys' collection...");
+  console.log("\nChecking 'surveys' collection...");
   await ensureCollection(COLLECTIONS.surveys, "Survey Responses");
   await ensureStringAttr(COLLECTIONS.surveys, "want", 50, true, true);
   await ensureStringAttr(COLLECTIONS.surveys, "challenge", 3000, false);
@@ -194,7 +259,7 @@ async function main() {
   await ensureIndex(COLLECTIONS.surveys, "idx_createdAt", "key", ["createdAt"], ["DESC"]);
 
   // --- Collection: Subscribers ---
-  console.log("\nConfiguring 'subscribers' collection...");
+  console.log("\nChecking 'subscribers' collection...");
   await ensureCollection(COLLECTIONS.subscribers, "Newsletter Subscribers");
   await ensureEmailAttr(COLLECTIONS.subscribers, "email", true);
   await ensureStringAttr(COLLECTIONS.subscribers, "status", 50, false, false, "subscribed");
@@ -202,9 +267,9 @@ async function main() {
   await ensureIndex(COLLECTIONS.subscribers, "idx_email", "key", ["email"]);
   await ensureIndex(COLLECTIONS.subscribers, "idx_createdAt", "key", ["createdAt"], ["DESC"]);
 
-  // --- Collection: Analytics ---
-  console.log("\nConfiguring 'analytics' collection...");
-  await ensureCollection(COLLECTIONS.analytics, "Website Analytics");
+  // --- Collection: Analytics Events ---
+  console.log("\nChecking 'analytics_events' collection...");
+  await ensureCollection(COLLECTIONS.analytics, "Website Analytics Events");
   await ensureStringAttr(COLLECTIONS.analytics, "eventType", 50, true);
   await ensureStringAttr(COLLECTIONS.analytics, "path", 300, true);
   await ensureStringAttr(COLLECTIONS.analytics, "referrer", 500, false);
@@ -225,7 +290,7 @@ async function main() {
   await ensureIndex(COLLECTIONS.analytics, "idx_eventType", "key", ["eventType"]);
 
   // --- Collection: Blogs (Public Read) ---
-  console.log("\nConfiguring 'blogs' collection...");
+  console.log("\nChecking 'blogs' collection...");
   await ensureCollection(COLLECTIONS.blogs, "Blog Stories", [Permission.read(Role.any())]);
   await ensureStringAttr(COLLECTIONS.blogs, "title", 255, true);
   await ensureStringAttr(COLLECTIONS.blogs, "slug", 255, true);
@@ -251,44 +316,45 @@ async function main() {
   await ensureIndex(COLLECTIONS.blogs, "idx_createdAt", "key", ["createdAt"], ["DESC"]);
 
   // 3. Storage Bucket Setup
-  console.log(`\nConfiguring Storage Bucket '${BUCKET_ID}'...`);
+  console.log(`\nChecking Storage Bucket '${BUCKET_ID}'...`);
   try {
     await storage.getBucket(BUCKET_ID);
     console.log(`✓ Bucket '${BUCKET_ID}' exists.`);
-  } catch {
-    console.log(`Creating bucket '${BUCKET_ID}'...`);
-    await storage.createBucket(
-      BUCKET_ID,
-      "AHVI Media & Blog Assets",
-      [Permission.read(Role.any())], // public can view images
-      false, // fileSecurity
-      true, // enabled
-      8 * 1024 * 1024, // 8MB limit
-      ["jpg", "jpeg", "png", "webp"]
-    );
-    console.log(`✓ Bucket '${BUCKET_ID}' created.`);
+  } catch (err) {
+    if (err.code === 404) {
+      console.log(`Creating bucket '${BUCKET_ID}'...`);
+      await storage.createBucket(
+        BUCKET_ID,
+        "AHVI Media & Blog Assets",
+        [Permission.read(Role.any())],
+        false,
+        true,
+        8 * 1024 * 1024,
+        ["jpg", "jpeg", "png", "webp"]
+      );
+      console.log(`✓ Bucket '${BUCKET_ID}' created.`);
+    }
   }
 
-  // 4. Migrate Blog Stories from data/blogs.json
-  console.log("\nMigrating blog stories from data/blogs.json to Appwrite...");
+  // 4. Non-Destructive Blog Migration (checks unique slug before writing)
+  console.log("\nChecking blog stories from data/blogs.json...");
   const blogsPath = path.join(process.cwd(), "data", "blogs.json");
   if (fs.existsSync(blogsPath)) {
     const localBlogs = JSON.parse(fs.readFileSync(blogsPath, "utf8"));
     console.log(`Found ${localBlogs.length} articles to check.`);
 
-    // Wait a brief moment for Appwrite attributes to index
     await sleep(2000);
 
-    let migrated = 0;
     for (const blog of localBlogs) {
       try {
-        const existing = await databases.listDocuments(DATABASE_ID, COLLECTIONS.blogs, [
+        const existing = await databases.listDocuments(resolvedDbId, COLLECTIONS.blogs, [
           Query.equal("slug", blog.slug),
           Query.limit(1),
         ]);
 
         if (existing.total > 0) {
-          continue; // Already migrated
+          stats.blogsSkipped++;
+          continue;
         }
 
         const payload = {
@@ -312,32 +378,29 @@ async function main() {
           updatedAt: blog.updatedAt,
         };
 
-        await databases.createDocument(DATABASE_ID, COLLECTIONS.blogs, ID.unique(), payload);
-        migrated++;
+        await databases.createDocument(resolvedDbId, COLLECTIONS.blogs, ID.unique(), payload);
+        stats.blogsMigrated++;
         process.stdout.write(`.`);
       } catch (err) {
         console.error(`\nFailed to migrate '${blog.slug}':`, err.message);
       }
     }
-    console.log(`\n✓ Migration complete: ${migrated} new articles uploaded (${localBlogs.length - migrated} already present).`);
+    console.log(`\n✓ Blog check complete: ${stats.blogsMigrated} new articles imported, ${stats.blogsSkipped} already present.`);
   }
 
-  // 5. Setup Admin User Account
-  console.log(`\nSetting up Admin account in Appwrite: ${ADMIN_EMAIL}...`);
-  try {
-    const userList = await users.list([Query.equal("email", ADMIN_EMAIL)]);
-    if (userList.total === 0) {
-      await users.create(ID.unique(), ADMIN_EMAIL, null, ADMIN_PASSWORD, "AHVI Admin");
-      console.log(`✓ Admin user '${ADMIN_EMAIL}' created successfully.`);
-    } else {
-      console.log(`✓ Admin user '${ADMIN_EMAIL}' already exists.`);
-    }
-  } catch (err) {
-    console.warn(`Admin user notice: ${err.message}`);
-  }
-
+  // 5. Summary
   console.log("\n==================================================");
-  console.log("   🎉 Appwrite Backend Setup Successfully Complete!   ");
+  console.log("   Execution Summary                              ");
+  console.log("==================================================");
+  console.log(`• Database Reused:      ${stats.databasesReused.join(", ") || resolvedDbId}`);
+  console.log(`• Collections Reused:   ${stats.collectionsReused.length} (${stats.collectionsReused.join(", ")})`);
+  console.log(`• Collections Created:  ${stats.collectionsCreated.length} (${stats.collectionsCreated.join(", ")})`);
+  console.log(`• Attributes Created:   ${stats.attributesCreated.length}`);
+  console.log(`• Attributes Reused:    ${stats.attributesSkipped.length}`);
+  console.log(`• Indexes Created:      ${stats.indexesCreated.length}`);
+  console.log(`• Indexes Reused:       ${stats.indexesSkipped.length}`);
+  console.log(`• Blogs Migrated:       ${stats.blogsMigrated}`);
+  console.log(`• Blogs Reused/Skipped: ${stats.blogsSkipped}`);
   console.log("==================================================\n");
 }
 

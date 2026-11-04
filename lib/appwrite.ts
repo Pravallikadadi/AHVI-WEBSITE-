@@ -5,16 +5,16 @@ import { Client, Databases, Storage, Users, Account, ID, Query } from "node-appw
  * Server-side calls only. Never expose API keys or secrets to the browser.
  */
 export const APPWRITE_CONFIG = {
-  endpoint: process.env.APPWRITE_ENDPOINT || "https://cloud.appwrite.io/v1",
-  projectId: process.env.APPWRITE_PROJECT_ID || "",
+  endpoint: process.env.APPWRITE_ENDPOINT || "https://fra.cloud.appwrite.io/v1",
+  projectId: process.env.APPWRITE_PROJECT_ID || "69958f25003190519213",
   apiKey: process.env.APPWRITE_API_KEY || "",
-  databaseId: process.env.APPWRITE_DATABASE_ID || "ahvi_db",
+  databaseId: process.env.APPWRITE_DATABASE_ID || "69958fe40017ccd03111",
   collections: {
     contacts: process.env.APPWRITE_COLLECTION_CONTACTS || "contacts",
     waitlist: process.env.APPWRITE_COLLECTION_WAITLIST || "waitlist",
     surveys: process.env.APPWRITE_COLLECTION_SURVEYS || "surveys",
     subscribers: process.env.APPWRITE_COLLECTION_SUBSCRIBERS || "subscribers",
-    analytics: process.env.APPWRITE_COLLECTION_ANALYTICS || "analytics",
+    analytics: process.env.APPWRITE_COLLECTION_ANALYTICS || "analytics_events",
     blogs: process.env.APPWRITE_COLLECTION_BLOGS || "blogs",
   },
   bucketId: process.env.APPWRITE_STORAGE_BUCKET_ID || "ahvi_media",
