@@ -145,6 +145,20 @@ async function main() {
     }
   }
 
+  async function ensureIndex(colId, key, type, attributes, orders = []) {
+    try {
+      await databases.getIndex(DATABASE_ID, colId, key);
+    } catch {
+      console.log(`  + Index '${key}' (${type}) on [${attributes.join(", ")}]`);
+      try {
+        await databases.createIndex(DATABASE_ID, colId, key, type, attributes, orders);
+        await sleep(1000);
+      } catch (err) {
+        console.warn(`    ⚠️ Notice on index '${key}': ${err.message}`);
+      }
+    }
+  }
+
   // --- Collection: Contacts ---
   console.log("\nConfiguring 'contacts' collection...");
   await ensureCollection(COLLECTIONS.contacts, "Contact Inquiries");
@@ -154,6 +168,8 @@ async function main() {
   await ensureStringAttr(COLLECTIONS.contacts, "message", 5000, true);
   await ensureStringAttr(COLLECTIONS.contacts, "status", 50, false, false, "new");
   await ensureStringAttr(COLLECTIONS.contacts, "createdAt", 50, true);
+  await ensureIndex(COLLECTIONS.contacts, "idx_status", "key", ["status"]);
+  await ensureIndex(COLLECTIONS.contacts, "idx_createdAt", "key", ["createdAt"], ["DESC"]);
 
   // --- Collection: Waitlist ---
   console.log("\nConfiguring 'waitlist' collection...");
@@ -165,6 +181,9 @@ async function main() {
   await ensureStringAttr(COLLECTIONS.waitlist, "referralCode", 50, false);
   await ensureStringAttr(COLLECTIONS.waitlist, "status", 50, false, false, "pending");
   await ensureStringAttr(COLLECTIONS.waitlist, "createdAt", 50, true);
+  await ensureIndex(COLLECTIONS.waitlist, "idx_email", "key", ["email"]);
+  await ensureIndex(COLLECTIONS.waitlist, "idx_status", "key", ["status"]);
+  await ensureIndex(COLLECTIONS.waitlist, "idx_createdAt", "key", ["createdAt"], ["DESC"]);
 
   // --- Collection: Surveys ---
   console.log("\nConfiguring 'surveys' collection...");
@@ -172,6 +191,7 @@ async function main() {
   await ensureStringAttr(COLLECTIONS.surveys, "want", 50, true, true);
   await ensureStringAttr(COLLECTIONS.surveys, "challenge", 3000, false);
   await ensureStringAttr(COLLECTIONS.surveys, "createdAt", 50, true);
+  await ensureIndex(COLLECTIONS.surveys, "idx_createdAt", "key", ["createdAt"], ["DESC"]);
 
   // --- Collection: Subscribers ---
   console.log("\nConfiguring 'subscribers' collection...");
@@ -179,6 +199,8 @@ async function main() {
   await ensureEmailAttr(COLLECTIONS.subscribers, "email", true);
   await ensureStringAttr(COLLECTIONS.subscribers, "status", 50, false, false, "subscribed");
   await ensureStringAttr(COLLECTIONS.subscribers, "createdAt", 50, true);
+  await ensureIndex(COLLECTIONS.subscribers, "idx_email", "key", ["email"]);
+  await ensureIndex(COLLECTIONS.subscribers, "idx_createdAt", "key", ["createdAt"], ["DESC"]);
 
   // --- Collection: Analytics ---
   console.log("\nConfiguring 'analytics' collection...");
@@ -199,6 +221,8 @@ async function main() {
   await ensureStringAttr(COLLECTIONS.analytics, "target", 150, false);
   await ensureStringAttr(COLLECTIONS.analytics, "metadata", 5000, false);
   await ensureStringAttr(COLLECTIONS.analytics, "timestamp", 50, true);
+  await ensureIndex(COLLECTIONS.analytics, "idx_timestamp", "key", ["timestamp"], ["DESC"]);
+  await ensureIndex(COLLECTIONS.analytics, "idx_eventType", "key", ["eventType"]);
 
   // --- Collection: Blogs (Public Read) ---
   console.log("\nConfiguring 'blogs' collection...");
@@ -221,6 +245,10 @@ async function main() {
   await ensureStringAttr(COLLECTIONS.blogs, "publishedAt", 50, false);
   await ensureStringAttr(COLLECTIONS.blogs, "createdAt", 50, true);
   await ensureStringAttr(COLLECTIONS.blogs, "updatedAt", 50, true);
+  await ensureIndex(COLLECTIONS.blogs, "idx_slug", "unique", ["slug"]);
+  await ensureIndex(COLLECTIONS.blogs, "idx_status", "key", ["status"]);
+  await ensureIndex(COLLECTIONS.blogs, "idx_category", "key", ["category"]);
+  await ensureIndex(COLLECTIONS.blogs, "idx_createdAt", "key", ["createdAt"], ["DESC"]);
 
   // 3. Storage Bucket Setup
   console.log(`\nConfiguring Storage Bucket '${BUCKET_ID}'...`);

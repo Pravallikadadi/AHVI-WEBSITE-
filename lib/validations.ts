@@ -84,20 +84,30 @@ export type AdminLoginInput = z.infer<typeof adminLoginSchema>;
 /**
  * Blog input schema
  */
-export const blogInputSchema = z.object({
-  title: z.string().trim().min(3, "Title must be at least 3 characters").max(200),
-  slug: z.string().trim().max(200).optional(),
-  excerpt: z.string().trim().max(1000).optional().default(""),
-  content: z.string().trim().min(10, "Content must be at least 10 characters"),
-  coverImage: z.string().trim().min(1, "Cover image is required"),
-  heroImage: z.string().trim().optional(),
-  contentImages: z.array(z.string()).optional().default([]),
-  category: z.string().trim().min(1, "Category is required"),
-  author: z.string().trim().default("AHVI Editorial"),
-  readingTime: z.string().trim().default("4 min"),
-  featured: z.boolean().default(false),
-  tags: z.array(z.string()).default([]),
-  status: z.enum(["draft", "published"]).default("draft"),
-  shapeCarousels: z.any().optional(),
-  galleryCarousel: z.any().optional(),
-});
+export const blogInputSchema = z
+  .object({
+    title: z.string().trim().min(3, "Title must be at least 3 characters").max(200),
+    slug: z.string().trim().max(200).optional(),
+    excerpt: z.string().trim().max(1000).optional().default(""),
+    content: z.string().trim().min(10, "Content must be at least 10 characters"),
+    coverImage: z.string().trim().optional().default(""),
+    heroImage: z.string().trim().optional().default(""),
+    contentImages: z.array(z.string()).optional().default([]),
+    category: z.string().trim().min(1, "Category is required"),
+    author: z.string().trim().default("AHVI Editorial"),
+    readingTime: z.string().trim().default("4 min"),
+    featured: z.boolean().default(false),
+    tags: z.array(z.string()).default([]),
+    status: z.enum(["draft", "published"]).default("draft"),
+    shapeCarousels: z.any().optional(),
+    galleryCarousel: z.any().optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.status === "published" && !data.coverImage) {
+        return false;
+      }
+      return true;
+    },
+    { message: "A cover image is required to publish", path: ["coverImage"] }
+  );
