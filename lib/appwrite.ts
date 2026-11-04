@@ -10,7 +10,7 @@ export const APPWRITE_CONFIG = {
   apiKey: process.env.APPWRITE_API_KEY || "",
   databaseId: process.env.APPWRITE_DATABASE_ID || "69958fe40017ccd03111",
   collections: {
-    contacts: process.env.APPWRITE_COLLECTION_CONTACTS || "contacts",
+    contacts: process.env.APPWRITE_COLLECTION_CONTACTS || "website_contacts",
     waitlist: process.env.APPWRITE_COLLECTION_WAITLIST || "waitlist",
     surveys: process.env.APPWRITE_COLLECTION_SURVEYS || "surveys",
     subscribers: process.env.APPWRITE_COLLECTION_SUBSCRIBERS || "subscribers",

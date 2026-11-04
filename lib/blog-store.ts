@@ -3,6 +3,7 @@ import path from "path";
 import type { Blog, BlogInput } from "@/lib/blog-types";
 import { slugify } from "@/lib/blog-types";
 import { isAppwriteConfigured, createAdminClient, APPWRITE_CONFIG, ID, Query } from "@/lib/appwrite";
+import { Permission, Role } from "node-appwrite";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const DATA_FILE = path.join(DATA_DIR, "blogs.json");
@@ -242,11 +243,14 @@ export async function create(input: BlogInput): Promise<Blog> {
     try {
       const { databases } = createAdminClient();
       const docId = ID.unique();
+      const permissions =
+        (input.status || "draft") === "published" ? [Permission.read(Role.any())] : [];
       const doc = await databases.createDocument(
         APPWRITE_CONFIG.databaseId,
         APPWRITE_CONFIG.collections.blogs,
         docId,
-        blogPayload
+        blogPayload,
+        permissions
       );
       const created = toBlog(doc);
       // Keep local in sync
@@ -311,11 +315,16 @@ export async function update(id: string, input: BlogInput): Promise<Blog | null>
         updatedAt: now,
       };
 
+      const permissions =
+        (input.status || existingDoc.status) === "published"
+          ? [Permission.read(Role.any())]
+          : [];
       const updated = await databases.updateDocument(
         APPWRITE_CONFIG.databaseId,
         APPWRITE_CONFIG.collections.blogs,
         id,
-        updateData
+        updateData,
+        permissions
       );
 
       const result = toBlog(updated);

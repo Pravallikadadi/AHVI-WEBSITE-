@@ -1,19 +1,22 @@
 /**
- * AHVI - Safe, Non-Destructive Appwrite Backend Setup & Migration Script
+ * AHVI - Non-Destructive, Idempotent Appwrite Backend Setup & Migration Script
  *
- * CRITICAL SAFETY RULES:
- * 1. REUSES existing database 'ahvi_db' (ID: 69958fe40017ccd03111) if it exists.
- * 2. NEVER deletes, recreates, or overwrites existing databases.
- * 3. NEVER drops or overwrites existing collections.
- * 4. NEVER deletes or modifies existing documents or data.
- * 5. Reuses existing collections and adds only missing attributes & indexes.
- * 6. Checks unique slugs before adding blog stories (zero duplication).
- * 7. Completely idempotent - safe to execute multiple times.
+ * MANDATORY SAFETY GUARDS:
+ * 1. STRICT LOCK: Uses ONLY existing database 'ahvi db' (ID: 69958fe40017ccd03111).
+ * 2. ZERO WRITES IN DRY-RUN: Default mode is --dry-run. No modifications are executed
+ *    unless explicitly passed with --apply.
+ * 3. MOBILE DATA GUARD: Strictly isolates and protects all 20+ mobile collections
+ *    (outfits, style_assets, users, saved_boards, contacts, etc.). Never modifies them.
+ * 4. DRAFT BLOG SECURITY: Blogs collection uses documentSecurity: true with NO
+ *    collection-level public read. Only published documents receive public read.
+ * 5. LEAST-PRIVILEGE MEDIA: ahvi_media bucket allows public read only. File writes
+ *    restricted to authenticated server-side admins.
+ * 6. IDEMPOTENT & SLUG-SAFE: Verifies existing slugs and collections before proposing additions.
  */
 
 const fs = require("fs");
 const path = require("path");
-const { Client, Databases, Storage, Users, ID, Permission, Role, Query } = require("node-appwrite");
+const { Client, Databases, Storage, ID, Permission, Role, Query } = require("node-appwrite");
 
 // Load .env.local or .env
 function loadEnv() {
@@ -35,10 +38,9 @@ function loadEnv() {
     }
   }
 }
-
 loadEnv();
 
-// Also fallback to ~/.appwrite/prefs.json if available
+// Fallback to CLI prefs for read-only inspection if needed
 try {
   const userHome = process.env.USERPROFILE || process.env.HOME || "C:\\Users\\kavya";
   const prefsPath = path.join(userHome, ".appwrite", "prefs.json");
@@ -54,20 +56,51 @@ try {
       process.env.APPWRITE_ENDPOINT = prefs[prefs.current].endpoint;
     }
   }
-} catch (e) {
-  // ignore
-}
+} catch (e) {}
+
+const isApply = process.argv.includes("--apply") || process.argv.includes("--execute");
+const isDryRun = !isApply;
 
 const ENDPOINT = process.env.APPWRITE_ENDPOINT || "https://fra.cloud.appwrite.io/v1";
 const PROJECT_ID = process.env.APPWRITE_PROJECT_ID || "69958f25003190519213";
 const API_KEY = process.env.APPWRITE_API_KEY;
-const TARGET_DB_ID = process.env.APPWRITE_DATABASE_ID || "69958fe40017ccd03111"; // Known existing ahvi_db
+const TARGET_DB_ID = "69958fe40017ccd03111"; // STRICT: locked to existing ahvi db
 const BUCKET_ID = process.env.APPWRITE_STORAGE_BUCKET_ID || "ahvi_media";
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@ahvi.com";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "ahvi-admin";
 
+// Mobile collections that must NEVER be modified
+const MOBILE_COLLECTIONS_GUARD = new Set([
+  "outfits",
+  "style_assets",
+  "users",
+  "saved_boards",
+  "workout_outfits",
+  "calendar_events",
+  "med_logs",
+  "skincare_profiles",
+  "meds",
+  "bills",
+  "meal_plans",
+  "coupons",
+  "life_goals",
+  "plans",
+  "chat_threads",
+  "chat_messages",
+  "contacts", // Mobile contacts phonebook
+  "skincare_logs",
+  "fitness_logs",
+  "style_board_states",
+  "wardrobe_style_metadata",
+  "upload_batches",
+  "prepared_items",
+  "wear_events",
+  "orders",
+  "email_review_queue",
+  "inbound_webhook_raw",
+]);
+
+// Website collections (Option 2: website_contacts)
 const COLLECTIONS = {
-  contacts: process.env.APPWRITE_COLLECTION_CONTACTS || "contacts",
+  contacts: process.env.APPWRITE_COLLECTION_CONTACTS || "website_contacts",
   waitlist: process.env.APPWRITE_COLLECTION_WAITLIST || "waitlist",
   surveys: process.env.APPWRITE_COLLECTION_SURVEYS || "surveys",
   subscribers: process.env.APPWRITE_COLLECTION_SUBSCRIBERS || "subscribers",
@@ -80,282 +113,429 @@ async function sleep(ms) {
 }
 
 async function main() {
-  console.log("==================================================");
-  console.log("  AHVI - Non-Destructive Appwrite Integration     ");
-  console.log("==================================================");
+  console.log("================================================================================");
+  console.log(
+    isDryRun
+      ? "  AHVI - Appwrite Dry-Run Inspector (SAFETY MODE: ZERO WRITES PERFORMED)        "
+      : "  AHVI - Safe Non-Destructive Appwrite Provisioning (--apply)                   "
+  );
+  console.log("================================================================================");
+  console.log(`• Mode:               ${isDryRun ? "DRY-RUN (Read-Only Simulation)" : "EXECUTE / APPLY"}`);
+  console.log(`• Endpoint:           ${ENDPOINT}`);
+  console.log(`• Project ID:         ${PROJECT_ID}`);
+  console.log(`• Database Target ID: ${TARGET_DB_ID} (Name: "ahvi db")`);
+  console.log(`• Storage Bucket ID:  ${BUCKET_ID}`);
+  console.log(`• API Key Configured: ${Boolean(API_KEY)}\n`);
 
   if (!PROJECT_ID || !API_KEY) {
-    console.error("\n❌ Error: Missing Appwrite configuration!");
-    console.error("Please ensure APPWRITE_PROJECT_ID and APPWRITE_API_KEY are configured.");
+    console.error("❌ Error: Missing APPWRITE_PROJECT_ID or APPWRITE_API_KEY.");
     process.exit(1);
   }
 
-  console.log(`Connecting to Appwrite:`);
-  console.log(`• Endpoint:    ${ENDPOINT}`);
-  console.log(`• Project ID:  ${PROJECT_ID}`);
-  console.log(`• Target DB:   ${TARGET_DB_ID}\n`);
+  // Safety Assertion 1: Guard against modifying any mobile collections
+  for (const [key, colId] of Object.entries(COLLECTIONS)) {
+    if (MOBILE_COLLECTIONS_GUARD.has(colId)) {
+      console.error(
+        `❌ CRITICAL SAFETY VIOLATION: Collection mapping '${key}: ${colId}' points to a protected mobile collection!`
+      );
+      console.error(`Mobile collection '${colId}' must remain completely untouched.`);
+      process.exit(1);
+    }
+  }
 
   const client = new Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(API_KEY);
   const databases = new Databases(client);
   const storage = new Storage(client);
-  const users = new Users(client);
 
-  const stats = {
-    databasesReused: [],
-    collectionsReused: [],
-    collectionsCreated: [],
-    attributesCreated: [],
-    attributesSkipped: [],
-    indexesCreated: [],
-    indexesSkipped: [],
-    blogsMigrated: 0,
-    blogsSkipped: 0,
+  const dryRunReport = {
+    database: null,
+    mobileCollectionsConfirmedUntouched: [],
+    existingWebsiteCollections: [],
+    proposedNewCollections: [],
+    proposedAttributes: [],
+    proposedIndexes: [],
+    storageBucketAction: null,
+    blogsChecked: 0,
+    blogsProposedForImport: 0,
+    blogsAlreadyPresent: 0,
   };
 
-  // 1. Locate and lock onto existing database
-  let resolvedDbId = TARGET_DB_ID;
+  // 1. Verify Target Database
+  console.log("--- 1. Database Verification ---");
   try {
-    const dbList = await databases.list();
-    const existingDb = dbList.databases.find(
-      (d) =>
-        d.$id === TARGET_DB_ID ||
-        d.name.toLowerCase() === "ahvi db" ||
-        d.name.toLowerCase() === "ahvi_db"
-    );
-
-    if (existingDb) {
-      resolvedDbId = existingDb.$id;
-      stats.databasesReused.push(`${existingDb.name} (${existingDb.$id})`);
-      console.log(`✓ Reusing existing database: "${existingDb.name}" [${existingDb.$id}]`);
-    } else {
-      console.log(`Creating database 'ahvi_db' [${TARGET_DB_ID}]...`);
-      await databases.create(TARGET_DB_ID, "ahvi db");
-      console.log(`✓ Database '${TARGET_DB_ID}' created.`);
-    }
+    const db = await databases.get(TARGET_DB_ID);
+    dryRunReport.database = { id: db.$id, name: db.name, created: db.$createdAt };
+    console.log(`✓ Locked onto existing database: "${db.name}" [ID: ${db.$id}]`);
+    console.log(`✓ Creation timestamp: ${db.$createdAt}`);
+    console.log(`✓ Safety Guarantee: Databases will NEVER be recreated, renamed, or modified.\n`);
   } catch (err) {
-    console.log(`Notice on database lookup: ${err.message}. Verifying direct access to ${resolvedDbId}...`);
-    await databases.get(resolvedDbId);
-    stats.databasesReused.push(resolvedDbId);
+    console.error(`❌ Could not access target database ${TARGET_DB_ID}: ${err.message}`);
+    process.exit(1);
   }
 
-  // 2. Collection helper functions
-  async function ensureCollection(id, name, permissions = []) {
+  // 2. Confirm Mobile Collections are Excluded and Untouched
+  console.log("--- 2. Mobile Collections Guard Confirmation ---");
+  console.log(`The following ${MOBILE_COLLECTIONS_GUARD.size} mobile collections are STRICTLY EXCLUDED from modification:`);
+  for (const mobCol of MOBILE_COLLECTIONS_GUARD) {
+    dryRunReport.mobileCollectionsConfirmedUntouched.push(mobCol);
+    console.log(`  [PROTECTED & EXCLUDED] ${mobCol}`);
+  }
+  console.log("");
+
+  // 3. Inspect Existing vs Proposed Website Collections
+  console.log("--- 3. Website Collections Inspection ---");
+  const websiteCollectionSpecs = [
+    {
+      id: COLLECTIONS.contacts,
+      name: "Website Contact Inquiries",
+      documentSecurity: false,
+      permissions: [],
+      attributes: [
+        { key: "name", type: "string", size: 100, required: false },
+        { key: "email", type: "email", required: true },
+        { key: "subject", type: "string", size: 200, required: false },
+        { key: "message", type: "string", size: 5000, required: true },
+        { key: "status", type: "string", size: 50, required: false, default: "new" },
+        { key: "createdAt", type: "string", size: 50, required: true },
+      ],
+      indexes: [
+        { key: "idx_status", type: "key", attributes: ["status"] },
+        { key: "idx_createdAt", type: "key", attributes: ["createdAt"], orders: ["DESC"] },
+      ],
+    },
+    {
+      id: COLLECTIONS.waitlist,
+      name: "Waitlist Entries",
+      documentSecurity: false,
+      permissions: [],
+      attributes: [
+        { key: "name", type: "string", size: 100, required: true },
+        { key: "email", type: "email", required: true },
+        { key: "phone", type: "string", size: 50, required: false },
+        { key: "interests", type: "string", size: 50, required: false, isArray: true },
+        { key: "referralCode", type: "string", size: 50, required: false },
+        { key: "status", type: "string", size: 50, required: false, default: "pending" },
+        { key: "createdAt", type: "string", size: 50, required: true },
+      ],
+      indexes: [
+        { key: "idx_email", type: "key", attributes: ["email"] },
+        { key: "idx_status", type: "key", attributes: ["status"] },
+        { key: "idx_createdAt", type: "key", attributes: ["createdAt"], orders: ["DESC"] },
+      ],
+    },
+    {
+      id: COLLECTIONS.surveys,
+      name: "Survey Responses",
+      documentSecurity: false,
+      permissions: [],
+      attributes: [
+        { key: "want", type: "string", size: 50, required: true, isArray: true },
+        { key: "challenge", type: "string", size: 3000, required: false },
+        { key: "createdAt", type: "string", size: 50, required: true },
+      ],
+      indexes: [
+        { key: "idx_createdAt", type: "key", attributes: ["createdAt"], orders: ["DESC"] },
+      ],
+    },
+    {
+      id: COLLECTIONS.subscribers,
+      name: "Newsletter Subscribers",
+      documentSecurity: false,
+      permissions: [],
+      attributes: [
+        { key: "email", type: "email", required: true },
+        { key: "status", type: "string", size: 50, required: false, default: "subscribed" },
+        { key: "createdAt", type: "string", size: 50, required: true },
+      ],
+      indexes: [
+        { key: "idx_email", type: "key", attributes: ["email"] },
+        { key: "idx_createdAt", type: "key", attributes: ["createdAt"], orders: ["DESC"] },
+      ],
+    },
+    {
+      id: COLLECTIONS.analytics,
+      name: "Website Analytics Events",
+      documentSecurity: false,
+      permissions: [],
+      attributes: [
+        { key: "eventType", type: "string", size: 50, required: true },
+        { key: "path", type: "string", size: 300, required: true },
+        { key: "referrer", type: "string", size: 500, required: false },
+        { key: "source", type: "string", size: 100, required: false },
+        { key: "utmSource", type: "string", size: 100, required: false },
+        { key: "utmMedium", type: "string", size: 100, required: false },
+        { key: "utmCampaign", type: "string", size: 100, required: false },
+        { key: "utmTerm", type: "string", size: 100, required: false },
+        { key: "utmContent", type: "string", size: 100, required: false },
+        { key: "sessionId", type: "string", size: 100, required: true },
+        { key: "visitorId", type: "string", size: 100, required: true },
+        { key: "deviceType", type: "string", size: 50, required: false },
+        { key: "browser", type: "string", size: 100, required: false },
+        { key: "target", type: "string", size: 150, required: false },
+        { key: "metadata", type: "string", size: 5000, required: false },
+        { key: "timestamp", type: "string", size: 50, required: true },
+      ],
+      indexes: [
+        { key: "idx_timestamp", type: "key", attributes: ["timestamp"], orders: ["DESC"] },
+        { key: "idx_eventType", type: "key", attributes: ["eventType"] },
+      ],
+    },
+    {
+      id: COLLECTIONS.blogs,
+      name: "Blog Stories",
+      // SECURITY MANDATE 4: No collection-level public read. documentSecurity = true ensures
+      // that drafts are strictly admin-only and only published documents get public read!
+      documentSecurity: true,
+      permissions: [],
+      attributes: [
+        { key: "title", type: "string", size: 255, required: true },
+        { key: "slug", type: "string", size: 255, required: true },
+        { key: "excerpt", type: "string", size: 1500, required: false },
+        { key: "content", type: "string", size: 100000, required: true },
+        { key: "coverImage", type: "string", size: 500, required: true },
+        { key: "heroImage", type: "string", size: 500, required: false },
+        { key: "contentImages", type: "string", size: 500, required: false, isArray: true },
+        { key: "shapeCarousels", type: "string", size: 20000, required: false },
+        { key: "galleryCarousel", type: "string", size: 20000, required: false },
+        { key: "category", type: "string", size: 100, required: true },
+        { key: "author", type: "string", size: 100, required: true },
+        { key: "readingTime", type: "string", size: 50, required: true },
+        { key: "featured", type: "boolean", required: false, default: false },
+        { key: "tags", type: "string", size: 100, required: false, isArray: true },
+        { key: "status", type: "string", size: 50, required: true, default: "draft" },
+        { key: "publishedAt", type: "string", size: 50, required: false },
+        { key: "createdAt", type: "string", size: 50, required: true },
+        { key: "updatedAt", type: "string", size: 50, required: true },
+      ],
+      indexes: [
+        { key: "idx_slug", type: "unique", attributes: ["slug"] },
+        { key: "idx_status", type: "key", attributes: ["status"] },
+        { key: "idx_category", type: "key", attributes: ["category"] },
+        { key: "idx_createdAt", type: "key", attributes: ["createdAt"], orders: ["DESC"] },
+      ],
+    },
+  ];
+
+  for (const spec of websiteCollectionSpecs) {
+    let collectionExists = false;
     try {
-      const coll = await databases.getCollection(resolvedDbId, id);
-      stats.collectionsReused.push(`${name} (${id})`);
-      console.log(`✓ Reusing existing collection: '${name}' (${id})`);
-      return coll;
-    } catch (err) {
-      if (err.code === 404) {
-        console.log(`+ Creating missing collection: '${name}' (${id})...`);
-        const coll = await databases.createCollection(resolvedDbId, id, name, permissions);
-        stats.collectionsCreated.push(`${name} (${id})`);
-        console.log(`✓ Collection '${name}' created.`);
-        await sleep(1000);
-        return coll;
-      }
-      throw err;
-    }
-  }
-
-  async function ensureStringAttr(colId, key, size, required = false, isArray = false, def = undefined) {
-    try {
-      await databases.getAttribute(resolvedDbId, colId, key);
-      stats.attributesSkipped.push(`${colId}.${key}`);
-    } catch (err) {
-      if (err.code === 404) {
-        console.log(`  + Attribute '${key}' (${isArray ? "array" : "string"})`);
-        await databases.createStringAttribute(resolvedDbId, colId, key, size, required, def, isArray);
-        stats.attributesCreated.push(`${colId}.${key}`);
-        await sleep(800);
-      } else {
-        throw err;
-      }
-    }
-  }
-
-  async function ensureEmailAttr(colId, key, required = false) {
-    try {
-      await databases.getAttribute(resolvedDbId, colId, key);
-      stats.attributesSkipped.push(`${colId}.${key}`);
-    } catch (err) {
-      if (err.code === 404) {
-        console.log(`  + Attribute '${key}' (email)`);
-        await databases.createEmailAttribute(resolvedDbId, colId, key, required);
-        stats.attributesCreated.push(`${colId}.${key}`);
-        await sleep(800);
-      } else {
-        throw err;
-      }
-    }
-  }
-
-  async function ensureBoolAttr(colId, key, required = false, def = false) {
-    try {
-      await databases.getAttribute(resolvedDbId, colId, key);
-      stats.attributesSkipped.push(`${colId}.${key}`);
-    } catch (err) {
-      if (err.code === 404) {
-        console.log(`  + Attribute '${key}' (boolean)`);
-        await databases.createBooleanAttribute(resolvedDbId, colId, key, required, def);
-        stats.attributesCreated.push(`${colId}.${key}`);
-        await sleep(800);
-      } else {
-        throw err;
-      }
-    }
-  }
-
-  async function ensureIndex(colId, key, type, attributes, orders = []) {
-    try {
-      await databases.getIndex(resolvedDbId, colId, key);
-      stats.indexesSkipped.push(`${colId}.${key}`);
-    } catch (err) {
-      if (err.code === 404) {
-        console.log(`  + Index '${key}' (${type}) on [${attributes.join(", ")}]`);
-        try {
-          await databases.createIndex(resolvedDbId, colId, key, type, attributes, orders);
-          stats.indexesCreated.push(`${colId}.${key}`);
-          await sleep(1000);
-        } catch (idxErr) {
-          console.warn(`    ⚠️ Notice on index '${key}': ${idxErr.message}`);
-        }
-      }
-    }
-  }
-
-  // --- Collection: Contacts ---
-  console.log("\nChecking 'contacts' collection...");
-  await ensureCollection(COLLECTIONS.contacts, "Contact Inquiries");
-  await ensureStringAttr(COLLECTIONS.contacts, "name", 100, false);
-  await ensureEmailAttr(COLLECTIONS.contacts, "email", false);
-  await ensureStringAttr(COLLECTIONS.contacts, "subject", 200, false);
-  await ensureStringAttr(COLLECTIONS.contacts, "message", 5000, false);
-  await ensureStringAttr(COLLECTIONS.contacts, "status", 50, false, false, "new");
-  await ensureStringAttr(COLLECTIONS.contacts, "createdAt", 50, false);
-  await ensureIndex(COLLECTIONS.contacts, "idx_status", "key", ["status"]);
-  await ensureIndex(COLLECTIONS.contacts, "idx_createdAt", "key", ["createdAt"], ["DESC"]);
-
-  // --- Collection: Waitlist ---
-  console.log("\nChecking 'waitlist' collection...");
-  await ensureCollection(COLLECTIONS.waitlist, "Waitlist Entries");
-  await ensureStringAttr(COLLECTIONS.waitlist, "name", 100, true);
-  await ensureEmailAttr(COLLECTIONS.waitlist, "email", true);
-  await ensureStringAttr(COLLECTIONS.waitlist, "phone", 50, false);
-  await ensureStringAttr(COLLECTIONS.waitlist, "interests", 50, false, true);
-  await ensureStringAttr(COLLECTIONS.waitlist, "referralCode", 50, false);
-  await ensureStringAttr(COLLECTIONS.waitlist, "status", 50, false, false, "pending");
-  await ensureStringAttr(COLLECTIONS.waitlist, "createdAt", 50, true);
-  await ensureIndex(COLLECTIONS.waitlist, "idx_email", "key", ["email"]);
-  await ensureIndex(COLLECTIONS.waitlist, "idx_status", "key", ["status"]);
-  await ensureIndex(COLLECTIONS.waitlist, "idx_createdAt", "key", ["createdAt"], ["DESC"]);
-
-  // --- Collection: Surveys ---
-  console.log("\nChecking 'surveys' collection...");
-  await ensureCollection(COLLECTIONS.surveys, "Survey Responses");
-  await ensureStringAttr(COLLECTIONS.surveys, "want", 50, true, true);
-  await ensureStringAttr(COLLECTIONS.surveys, "challenge", 3000, false);
-  await ensureStringAttr(COLLECTIONS.surveys, "createdAt", 50, true);
-  await ensureIndex(COLLECTIONS.surveys, "idx_createdAt", "key", ["createdAt"], ["DESC"]);
-
-  // --- Collection: Subscribers ---
-  console.log("\nChecking 'subscribers' collection...");
-  await ensureCollection(COLLECTIONS.subscribers, "Newsletter Subscribers");
-  await ensureEmailAttr(COLLECTIONS.subscribers, "email", true);
-  await ensureStringAttr(COLLECTIONS.subscribers, "status", 50, false, false, "subscribed");
-  await ensureStringAttr(COLLECTIONS.subscribers, "createdAt", 50, true);
-  await ensureIndex(COLLECTIONS.subscribers, "idx_email", "key", ["email"]);
-  await ensureIndex(COLLECTIONS.subscribers, "idx_createdAt", "key", ["createdAt"], ["DESC"]);
-
-  // --- Collection: Analytics Events ---
-  console.log("\nChecking 'analytics_events' collection...");
-  await ensureCollection(COLLECTIONS.analytics, "Website Analytics Events");
-  await ensureStringAttr(COLLECTIONS.analytics, "eventType", 50, true);
-  await ensureStringAttr(COLLECTIONS.analytics, "path", 300, true);
-  await ensureStringAttr(COLLECTIONS.analytics, "referrer", 500, false);
-  await ensureStringAttr(COLLECTIONS.analytics, "source", 100, false);
-  await ensureStringAttr(COLLECTIONS.analytics, "utmSource", 100, false);
-  await ensureStringAttr(COLLECTIONS.analytics, "utmMedium", 100, false);
-  await ensureStringAttr(COLLECTIONS.analytics, "utmCampaign", 100, false);
-  await ensureStringAttr(COLLECTIONS.analytics, "utmTerm", 100, false);
-  await ensureStringAttr(COLLECTIONS.analytics, "utmContent", 100, false);
-  await ensureStringAttr(COLLECTIONS.analytics, "sessionId", 100, true);
-  await ensureStringAttr(COLLECTIONS.analytics, "visitorId", 100, true);
-  await ensureStringAttr(COLLECTIONS.analytics, "deviceType", 50, false);
-  await ensureStringAttr(COLLECTIONS.analytics, "browser", 100, false);
-  await ensureStringAttr(COLLECTIONS.analytics, "target", 150, false);
-  await ensureStringAttr(COLLECTIONS.analytics, "metadata", 5000, false);
-  await ensureStringAttr(COLLECTIONS.analytics, "timestamp", 50, true);
-  await ensureIndex(COLLECTIONS.analytics, "idx_timestamp", "key", ["timestamp"], ["DESC"]);
-  await ensureIndex(COLLECTIONS.analytics, "idx_eventType", "key", ["eventType"]);
-
-  // --- Collection: Blogs (Public Read) ---
-  console.log("\nChecking 'blogs' collection...");
-  await ensureCollection(COLLECTIONS.blogs, "Blog Stories", [Permission.read(Role.any())]);
-  await ensureStringAttr(COLLECTIONS.blogs, "title", 255, true);
-  await ensureStringAttr(COLLECTIONS.blogs, "slug", 255, true);
-  await ensureStringAttr(COLLECTIONS.blogs, "excerpt", 1500, false);
-  await ensureStringAttr(COLLECTIONS.blogs, "content", 100000, true);
-  await ensureStringAttr(COLLECTIONS.blogs, "coverImage", 500, true);
-  await ensureStringAttr(COLLECTIONS.blogs, "heroImage", 500, false);
-  await ensureStringAttr(COLLECTIONS.blogs, "contentImages", 500, false, true);
-  await ensureStringAttr(COLLECTIONS.blogs, "shapeCarousels", 20000, false);
-  await ensureStringAttr(COLLECTIONS.blogs, "galleryCarousel", 20000, false);
-  await ensureStringAttr(COLLECTIONS.blogs, "category", 100, true);
-  await ensureStringAttr(COLLECTIONS.blogs, "author", 100, true);
-  await ensureStringAttr(COLLECTIONS.blogs, "readingTime", 50, true);
-  await ensureBoolAttr(COLLECTIONS.blogs, "featured", false, false);
-  await ensureStringAttr(COLLECTIONS.blogs, "tags", 100, false, true);
-  await ensureStringAttr(COLLECTIONS.blogs, "status", 50, true, false, "draft");
-  await ensureStringAttr(COLLECTIONS.blogs, "publishedAt", 50, false);
-  await ensureStringAttr(COLLECTIONS.blogs, "createdAt", 50, true);
-  await ensureStringAttr(COLLECTIONS.blogs, "updatedAt", 50, true);
-  await ensureIndex(COLLECTIONS.blogs, "idx_slug", "unique", ["slug"]);
-  await ensureIndex(COLLECTIONS.blogs, "idx_status", "key", ["status"]);
-  await ensureIndex(COLLECTIONS.blogs, "idx_category", "key", ["category"]);
-  await ensureIndex(COLLECTIONS.blogs, "idx_createdAt", "key", ["createdAt"], ["DESC"]);
-
-  // 3. Storage Bucket Setup
-  console.log(`\nChecking Storage Bucket '${BUCKET_ID}'...`);
-  try {
-    await storage.getBucket(BUCKET_ID);
-    console.log(`✓ Bucket '${BUCKET_ID}' exists.`);
-  } catch (err) {
-    if (err.code === 404) {
-      console.log(`Creating bucket '${BUCKET_ID}'...`);
-      await storage.createBucket(
-        BUCKET_ID,
-        "AHVI Media & Blog Assets",
-        [Permission.read(Role.any())],
-        false,
-        true,
-        8 * 1024 * 1024,
-        ["jpg", "jpeg", "png", "webp"]
+      await databases.getCollection(TARGET_DB_ID, spec.id);
+      collectionExists = true;
+      dryRunReport.existingWebsiteCollections.push(spec.id);
+      console.log(`• Collection '${spec.name}' (${spec.id}): ALREADY EXISTS (Will be reused)`);
+    } catch (e) {
+      dryRunReport.proposedNewCollections.push({
+        id: spec.id,
+        name: spec.name,
+        documentSecurity: spec.documentSecurity,
+        permissions: spec.permissions,
+      });
+      console.log(
+        `• Collection '${spec.name}' (${spec.id}): MISSING / UNINITIALIZED -> [DRY-RUN PROPOSED: Create Collection]`
       );
-      console.log(`✓ Bucket '${BUCKET_ID}' created.`);
+      if (spec.id === COLLECTIONS.blogs) {
+        console.log(`    ↳ Document-level security: ENABLED (Drafts restricted, published public)`);
+      }
+    }
+
+    // Inspect attributes
+    for (const attr of spec.attributes) {
+      let attrExists = false;
+      if (collectionExists) {
+        try {
+          await databases.getAttribute(TARGET_DB_ID, spec.id, attr.key);
+          attrExists = true;
+        } catch (e) {}
+      }
+      if (!attrExists) {
+        dryRunReport.proposedAttributes.push({ collection: spec.id, ...attr });
+        console.log(`    + Proposed Attribute: ${spec.id}.${attr.key} (${attr.type}, required: ${attr.required})`);
+      }
+    }
+
+    // Inspect indexes
+    for (const idx of spec.indexes) {
+      let idxExists = false;
+      if (collectionExists) {
+        try {
+          await databases.getIndex(TARGET_DB_ID, spec.id, idx.key);
+          idxExists = true;
+        } catch (e) {}
+      }
+      if (!idxExists) {
+        dryRunReport.proposedIndexes.push({ collection: spec.id, ...idx });
+        console.log(`    + Proposed Index: ${spec.id}.${idx.key} (${idx.type} on [${idx.attributes.join(", ")}])`);
+      }
     }
   }
+  console.log("");
 
-  // 4. Non-Destructive Blog Migration (checks unique slug before writing)
-  console.log("\nChecking blog stories from data/blogs.json...");
+  // 4. Storage Bucket Inspection
+  console.log("--- 4. Storage Bucket Inspection ---");
+  try {
+    const bucket = await storage.getBucket(BUCKET_ID);
+    dryRunReport.storageBucketAction = "REUSE";
+    console.log(`✓ Bucket '${BUCKET_ID}' ALREADY EXISTS (Will be reused): Name: "${bucket.name}"`);
+  } catch (e) {
+    if (e.code === 404) {
+      dryRunReport.storageBucketAction = "CREATE";
+      console.log(`• Bucket '${BUCKET_ID}': MISSING -> [DRY-RUN PROPOSED: Create Bucket]`);
+      console.log(`    ↳ Bucket Name: "AHVI Media & Blog Assets"`);
+      console.log(`    ↳ Permissions: [Permission.read(Role.any())] (Public view only, writes admin-only)`);
+      console.log(`    ↳ Max File Size: 8MB`);
+      console.log(`    ↳ Allowed Extensions: jpg, jpeg, png, webp`);
+    } else {
+      console.log(`• Bucket notice: ${e.message}`);
+    }
+  }
+  console.log("");
+
+  // 5. Blog Stories Inspection from data/blogs.json
+  console.log("--- 5. Blog Stories Migration Inspection ---");
   const blogsPath = path.join(process.cwd(), "data", "blogs.json");
   if (fs.existsSync(blogsPath)) {
     const localBlogs = JSON.parse(fs.readFileSync(blogsPath, "utf8"));
-    console.log(`Found ${localBlogs.length} articles to check.`);
+    dryRunReport.blogsChecked = localBlogs.length;
+    console.log(`Inspecting ${localBlogs.length} articles in data/blogs.json...`);
 
+    let existingInDb = 0;
+    let proposedForImport = 0;
+
+    for (const blog of localBlogs) {
+      let docExists = false;
+      try {
+        const queryRes = await databases.listDocuments(TARGET_DB_ID, COLLECTIONS.blogs, [
+          Query.equal("slug", blog.slug),
+          Query.limit(1),
+        ]);
+        if (queryRes.total > 0) docExists = true;
+      } catch (e) {
+        // Collection might not exist yet in dry run
+      }
+
+      if (docExists) {
+        existingInDb++;
+      } else {
+        proposedForImport++;
+      }
+    }
+
+    dryRunReport.blogsAlreadyPresent = existingInDb;
+    dryRunReport.blogsProposedForImport = proposedForImport;
+    console.log(`• Articles already present in database: ${existingInDb}`);
+    console.log(`• Articles proposed for import:        ${proposedForImport}`);
+    console.log(`• Duplicate slug protection:           ACTIVE (Zero duplicates will be created)\n`);
+  }
+
+  // 6. Execution Summary
+  console.log("================================================================================");
+  console.log("  DRY-RUN SUMMARY (NO WRITES WERE EXECUTED)                                     ");
+  console.log("================================================================================");
+  console.log(`• Database Verified:                ${dryRunReport.database?.name} (${TARGET_DB_ID})`);
+  console.log(`• Mobile Collections Guarded:       ${dryRunReport.mobileCollectionsConfirmedUntouched.length} (ALL UNTOUCHED)`);
+  console.log(`• Existing Website Collections:     ${dryRunReport.existingWebsiteCollections.length}`);
+  console.log(`• Proposed New Collections:         ${dryRunReport.proposedNewCollections.length} (${dryRunReport.proposedNewCollections.map((c) => c.id).join(", ")})`);
+  console.log(`• Proposed New Attributes:          ${dryRunReport.proposedAttributes.length}`);
+  console.log(`• Proposed New Indexes:             ${dryRunReport.proposedIndexes.length}`);
+  console.log(`• Proposed Storage Bucket Action:   ${dryRunReport.storageBucketAction || "CREATE"} (${BUCKET_ID})`);
+  console.log(`• Blog Articles to Import:          ${dryRunReport.blogsProposedForImport} (of ${dryRunReport.blogsChecked} total)`);
+  console.log("================================================================================");
+
+  if (isDryRun) {
+    console.log("\n[DRY-RUN COMPLETE] Zero changes were made to your Appwrite Cloud project.");
+    console.log("To apply these changes after approval, run: node scripts/setup-appwrite.js --apply\n");
+    return;
+  }
+
+  // EXECUTION PATH (--apply) ONLY RUNS WHEN EXPLICITLY CALLED
+  console.log("\n--- EXECUTING APPROVED CHANGES ---");
+
+  // 1. Create missing collections
+  for (const col of dryRunReport.proposedNewCollections) {
+    console.log(`+ Creating collection '${col.name}' (${col.id})...`);
+    await databases.createCollection(
+      TARGET_DB_ID,
+      col.id,
+      col.name,
+      col.permissions,
+      col.documentSecurity
+    );
+    await sleep(1000);
+  }
+
+  // 2. Create missing attributes
+  for (const attr of dryRunReport.proposedAttributes) {
+    console.log(`  + Creating attribute ${attr.collection}.${attr.key}...`);
+    if (attr.type === "email") {
+      await databases.createEmailAttribute(TARGET_DB_ID, attr.collection, attr.key, attr.required);
+    } else if (attr.type === "boolean") {
+      await databases.createBooleanAttribute(
+        TARGET_DB_ID,
+        attr.collection,
+        attr.key,
+        attr.required,
+        attr.default
+      );
+    } else if (attr.type === "string") {
+      await databases.createStringAttribute(
+        TARGET_DB_ID,
+        attr.collection,
+        attr.key,
+        attr.size,
+        attr.required,
+        attr.default,
+        Boolean(attr.isArray)
+      );
+    }
+    await sleep(800);
+  }
+
+  // 3. Create missing indexes
+  for (const idx of dryRunReport.proposedIndexes) {
+    console.log(`  + Creating index ${idx.collection}.${idx.key}...`);
+    try {
+      await databases.createIndex(
+        TARGET_DB_ID,
+        idx.collection,
+        idx.key,
+        idx.type,
+        idx.attributes,
+        idx.orders || []
+      );
+      await sleep(1000);
+    } catch (err) {
+      console.warn(`    ⚠️ Notice on index ${idx.key}: ${err.message}`);
+    }
+  }
+
+  // 4. Create storage bucket if missing
+  if (dryRunReport.storageBucketAction === "CREATE") {
+    console.log(`+ Creating storage bucket '${BUCKET_ID}'...`);
+    await storage.createBucket(
+      BUCKET_ID,
+      "AHVI Media & Blog Assets",
+      [Permission.read(Role.any())],
+      false,
+      true,
+      8 * 1024 * 1024,
+      ["jpg", "jpeg", "png", "webp"]
+    );
+    await sleep(1000);
+  }
+
+  // 5. Migrate blogs (with unique slug checking and per-document security)
+  if (dryRunReport.blogsProposedForImport > 0 && fs.existsSync(blogsPath)) {
+    const localBlogs = JSON.parse(fs.readFileSync(blogsPath, "utf8"));
+    console.log(`\nImporting ${dryRunReport.blogsProposedForImport} blog articles...`);
     await sleep(2000);
 
     for (const blog of localBlogs) {
       try {
-        const existing = await databases.listDocuments(resolvedDbId, COLLECTIONS.blogs, [
+        const existing = await databases.listDocuments(TARGET_DB_ID, COLLECTIONS.blogs, [
           Query.equal("slug", blog.slug),
           Query.limit(1),
         ]);
-
-        if (existing.total > 0) {
-          stats.blogsSkipped++;
-          continue;
-        }
+        if (existing.total > 0) continue;
 
         const payload = {
           title: blog.title,
@@ -378,33 +558,29 @@ async function main() {
           updatedAt: blog.updatedAt,
         };
 
-        await databases.createDocument(resolvedDbId, COLLECTIONS.blogs, ID.unique(), payload);
-        stats.blogsMigrated++;
-        process.stdout.write(`.`);
+        const docPermissions =
+          blog.status === "published" ? [Permission.read(Role.any())] : [];
+        await databases.createDocument(
+          TARGET_DB_ID,
+          COLLECTIONS.blogs,
+          ID.unique(),
+          payload,
+          docPermissions
+        );
+        process.stdout.write(".");
       } catch (err) {
-        console.error(`\nFailed to migrate '${blog.slug}':`, err.message);
+        console.error(`\nFailed to import '${blog.slug}': ${err.message}`);
       }
     }
-    console.log(`\n✓ Blog check complete: ${stats.blogsMigrated} new articles imported, ${stats.blogsSkipped} already present.`);
+    console.log("\n✓ Blog import complete.");
   }
 
-  // 5. Summary
-  console.log("\n==================================================");
-  console.log("   Execution Summary                              ");
-  console.log("==================================================");
-  console.log(`• Database Reused:      ${stats.databasesReused.join(", ") || resolvedDbId}`);
-  console.log(`• Collections Reused:   ${stats.collectionsReused.length} (${stats.collectionsReused.join(", ")})`);
-  console.log(`• Collections Created:  ${stats.collectionsCreated.length} (${stats.collectionsCreated.join(", ")})`);
-  console.log(`• Attributes Created:   ${stats.attributesCreated.length}`);
-  console.log(`• Attributes Reused:    ${stats.attributesSkipped.length}`);
-  console.log(`• Indexes Created:      ${stats.indexesCreated.length}`);
-  console.log(`• Indexes Reused:       ${stats.indexesSkipped.length}`);
-  console.log(`• Blogs Migrated:       ${stats.blogsMigrated}`);
-  console.log(`• Blogs Reused/Skipped: ${stats.blogsSkipped}`);
-  console.log("==================================================\n");
+  console.log("\n================================================================================");
+  console.log("  🎉 Provisioning Complete! Zero Existing Data Was Overwritten or Modified.    ");
+  console.log("================================================================================\n");
 }
 
 main().catch((err) => {
-  console.error("\n❌ Fatal setup error:", err);
+  console.error("\n❌ Fatal inspector error:", err.message);
   process.exit(1);
 });

@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
-import { parseUserAgent, classifyTrafficSource, storeAnalyticsEvent } from "@/lib/analytics-server";
+import {
+  parseUserAgent,
+  classifyTrafficSource,
+  storeAnalyticsEvent,
+  sanitizeUrlPath,
+  sanitizeMetadata,
+} from "@/lib/analytics-server";
 import { analyticsEventSchema } from "@/lib/validations";
 
 export const runtime = "nodejs";
@@ -37,10 +43,14 @@ export async function POST(req: NextRequest) {
       const data = parsed.data;
       const source = classifyTrafficSource(data.referrer, data.utmSource);
 
+      const sanitizedPath = sanitizeUrlPath(data.path).slice(0, 300);
+      const sanitizedReferrer = sanitizeUrlPath(data.referrer || "").slice(0, 500);
+      const sanitizedMeta = sanitizeMetadata(data.metadata || {});
+
       await storeAnalyticsEvent({
         eventType: data.eventType,
-        path: data.path.slice(0, 300),
-        referrer: (data.referrer || "").slice(0, 500),
+        path: sanitizedPath,
+        referrer: sanitizedReferrer,
         source,
         utmSource: data.utmSource,
         utmMedium: data.utmMedium,
@@ -52,7 +62,7 @@ export async function POST(req: NextRequest) {
         deviceType: data.deviceType || deviceType,
         browser: data.browser && data.browser !== "Other" ? data.browser : browser,
         target: (data.target || "").slice(0, 150),
-        metadata: JSON.stringify(data.metadata || {}),
+        metadata: JSON.stringify(sanitizedMeta),
         timestamp,
       });
     }

@@ -54,6 +54,64 @@ export function parseUserAgent(ua: string): {
 }
 
 /**
+ * Strip sensitive query parameters and credentials from URLs and paths
+ */
+export function sanitizeUrlPath(rawUrlOrPath: string): string {
+  if (!rawUrlOrPath) return "";
+  try {
+    const isFullUrl = rawUrlOrPath.startsWith("http://") || rawUrlOrPath.startsWith("https://");
+    const parsed = new URL(
+      isFullUrl ? rawUrlOrPath : `https://ahvi.in${rawUrlOrPath.startsWith("/") ? "" : "/"}${rawUrlOrPath}`
+    );
+    const sensitiveKeys = new Set([
+      "token",
+      "auth",
+      "key",
+      "secret",
+      "password",
+      "pwd",
+      "email",
+      "code",
+      "session",
+      "access_token",
+      "api_key",
+      "jwt",
+    ]);
+
+    for (const key of Array.from(parsed.searchParams.keys())) {
+      const lower = key.toLowerCase();
+      if (
+        sensitiveKeys.has(lower) ||
+        lower.includes("token") ||
+        lower.includes("secret") ||
+        lower.includes("password")
+      ) {
+        parsed.searchParams.delete(key);
+      }
+    }
+    return isFullUrl ? parsed.toString() : `${parsed.pathname}${parsed.search ? parsed.search : ""}`;
+  } catch {
+    return rawUrlOrPath.split("?")[0] || "";
+  }
+}
+
+/**
+ * Filter out sensitive keys from analytics metadata to ensure zero PII leakage
+ */
+export function sanitizeMetadata(metadata: any): Record<string, any> {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return {};
+  const sensitiveRegex = /password|pwd|token|secret|key|credit|card|cvv|ssn|auth|jwt|email|phone|bearer/i;
+  const clean: Record<string, any> = {};
+  for (const [k, v] of Object.entries(metadata)) {
+    if (sensitiveRegex.test(k)) continue;
+    if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") {
+      clean[k] = v;
+    }
+  }
+  return clean;
+}
+
+/**
  * Classify traffic source based on referrer
  */
 export function classifyTrafficSource(referrer: string, utmSource?: string): string {
