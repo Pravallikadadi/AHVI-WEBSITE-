@@ -1,10 +1,42 @@
 "use client";
 import { useState } from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
+import { trackFormSubmit } from "@/lib/analytics-client";
 
 export function Newsletter() {
   const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+    setLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Subscription failed");
+      }
+
+      trackFormSubmit("newsletter", true);
+      setDone(true);
+    } catch (err: any) {
+      trackFormSubmit("newsletter", false);
+      setError(err?.message || "Failed to subscribe");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <section className="bg-surface">
       <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-6 px-5 py-14 sm:px-8 sm:py-16">
@@ -13,16 +45,9 @@ export function Newsletter() {
           <div className="mb-2 font-condensed text-[clamp(24px,3vw,32px)] font-semibold">Get fresh style ideas in your inbox</div>
           <p className="text-[14px] text-muted">Subscribe to our newsletter and never miss a story.</p>
         </div>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!email) return;
-            setDone(true);
-          }}
-          className="flex w-full max-w-[420px] flex-col gap-2 sm:flex-row"
-        >
+        <form onSubmit={handleSubmit} className="flex w-full max-w-[420px] flex-col gap-2 sm:flex-row">
           {done ? (
-            <div className="flex-1 py-3.5 text-center text-[14px] text-accent">Thanks — you're subscribed.</div>
+            <div className="flex-1 py-3.5 text-center text-[14px] text-accent">Thanks — you&apos;re subscribed.</div>
           ) : (
             <>
               <input
@@ -30,15 +55,21 @@ export function Newsletter() {
                 onChange={(e) => setEmail(e.target.value)}
                 type="email"
                 required
+                disabled={loading}
                 placeholder="Enter your email"
-                className="min-w-0 flex-1 border border-ink/15 bg-bg px-5 py-3.5 text-[14px] placeholder:text-muted"
+                className="min-w-0 flex-1 border border-ink/15 bg-bg px-5 py-3.5 text-[14px] placeholder:text-muted disabled:opacity-60"
               />
-              <button type="submit" className="flex shrink-0 items-center justify-center gap-2 whitespace-nowrap border border-ink bg-ink px-5 py-3.5 text-[13px] tracking-[0.06em] text-bg hover:bg-black">
-                Subscribe <ArrowRight size={14} />
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex shrink-0 items-center justify-center gap-2 whitespace-nowrap border border-ink bg-ink px-5 py-3.5 text-[13px] tracking-[0.06em] text-bg hover:bg-black disabled:opacity-60"
+              >
+                {loading ? <Loader2 size={14} className="animate-spin" /> : "Subscribe"} <ArrowRight size={14} />
               </button>
             </>
           )}
         </form>
+        {error && <p className="w-full text-right text-[12px] text-error">{error}</p>}
       </div>
     </section>
   );

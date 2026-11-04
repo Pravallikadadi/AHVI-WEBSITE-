@@ -13,7 +13,7 @@ type Params = { slug: string };
 
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { slug } = await params;
-  const blog = getBySlug(slug);
+  const blog = await getBySlug(slug);
   if (!blog || blog.status !== "published") return { title: "Article not found" };
   return { title: blog.title, description: blog.excerpt };
 }
@@ -47,11 +47,11 @@ const proseClasses =
 
 export default async function BlogArticlePage({ params }: { params: Promise<Params> }) {
   const { slug } = await params;
-  const blog = getBySlug(slug);
+  const blog = await getBySlug(slug);
   if (!blog || blog.status !== "published") notFound();
 
-  const related = getRelated(blog);
-  const all = listPublished();
+  const related = await getRelated(blog);
+  const all = await listPublished();
   const idx = all.findIndex((b) => b.id === blog.id);
   const prevStory = idx > 0 ? all[idx - 1] : null;
   const nextStory = idx >= 0 && idx < all.length - 1 ? all[idx + 1] : null;

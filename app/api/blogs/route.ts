@@ -7,5 +7,6 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const search = searchParams.get("search") || "";
   const category = searchParams.get("category") || "All";
-  return NextResponse.json({ blogs: listPublished({ search, category }) });
+  const blogs = await listPublished({ search, category });
+  return NextResponse.json({ blogs });
 }

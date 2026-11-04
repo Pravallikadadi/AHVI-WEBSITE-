@@ -5,7 +5,7 @@ import { getById } from "@/lib/blog-store";
 
 export default async function EditBlogPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const blog = getById(id);
+  const blog = await getById(id);
   if (!blog) notFound();
 
   return (

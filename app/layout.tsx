@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { ToastProvider } from "@/lib/toast";
 import { ThemeProvider, THEME_INIT_SCRIPT } from "@/lib/theme";
 import { SmoothScroll } from "@/components/motion/smooth-scroll";
 import { NetworkStatus } from "@/components/network-status";
+import { AnalyticsTracker } from "@/components/analytics-tracker";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -22,6 +24,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <SmoothScroll />
           <NetworkStatus />
+          <Suspense fallback={null}>
+            <AnalyticsTracker />
+          </Suspense>
           <ToastProvider>{children}</ToastProvider>
         </ThemeProvider>
       </body>

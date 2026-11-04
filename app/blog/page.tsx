@@ -12,8 +12,8 @@ export const metadata: Metadata = {
   description: "Wardrobe tips, styling ideas, and conscious living — all in one place.",
 };
 
-export default function BlogPage() {
-  const listed = listPublished();
+export default async function BlogPage() {
+  const listed = await listPublished();
   const featured = listed.find((b) => b.featured) || listed[0] || null;
   const blogs = listed.filter((b) => b.id !== featured?.id);
 
