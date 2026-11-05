@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -67,7 +67,7 @@ async function postJson(url: string, body: unknown) {
   return { ok: res.ok, status: res.status, data } as { ok: boolean; status: number; data: Record<string, any> };
 }
 
-/* ───────────────────────────── small building blocks ───────────────────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ small building blocks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 function Field({
   id,
@@ -219,9 +219,9 @@ function Tabs({
   );
 }
 
-const PERKS: { icon: LucideIcon; text: string }[] = [
+const PERKS: { icon: React.ElementType; text: string; isAhvi?: boolean }[] = [
   { icon: Shirt, text: "Your wardrobe, understood piece by piece" },
-  { icon: Sparkles, text: "Styling ideas that fit your taste and lifestyle" },
+  { icon: AhviLogo, text: "Styling ideas that fit your taste and lifestyle", isAhvi: true },
   { icon: CalendarCheck, text: "Prep and plans for everything coming up" },
 ];
 
@@ -246,10 +246,10 @@ function BrandPanel() {
           Know what to wear, every day.
         </h2>
         <ul className="grid gap-4">
-          {PERKS.map(({ icon: Icon, text }) => (
+          {PERKS.map(({ icon: Icon, text, isAhvi }) => (
             <li key={text} className="flex items-start gap-3 text-[14px] leading-[20px] text-white/75">
               <span className="mt-[1px] grid h-7 w-7 shrink-0 place-items-center border border-white/20 bg-white/5">
-                <Icon size={14} strokeWidth={1.6} />
+                {isAhvi ? <Icon size={18} className="text-white" /> : <Icon size={14} strokeWidth={1.6} />}
               </span>
               {text}
             </li>
@@ -260,7 +260,7 @@ function BrandPanel() {
   );
 }
 
-/* ───────────────────────────────── the popup ───────────────────────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ the popup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 function PopupContent() {
   const { popupView, closeAuth, setSignedIn } = useAuth();
@@ -477,7 +477,7 @@ function PopupContent() {
         <div className="relative z-10 flex min-h-0 flex-1 flex-col md:min-h-[600px] md:flex-row">
           <BrandPanel />
 
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-8 pt-5 sm:px-10 sm:pb-10 md:pt-12">
+          <div className="auth-popup-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-8 pt-5 sm:px-10 sm:pb-10 md:pt-12">
             {/* Compact brand row for small screens (the dark panel is desktop-only) */}
             <div className="mb-6 flex items-center gap-1.5 text-[26px] tracking-[0.1em] text-ink md:hidden" aria-hidden>
               <AhviLogo size={22} />
@@ -496,7 +496,7 @@ function PopupContent() {
                     {welcome.user.name ? `, ${welcome.user.name.split(" ")[0]}` : ""}
                   </h2>
                   <p id={descId} className="mb-7 text-[14.5px] text-muted" role="status">
-                    {welcome.kind === "signup" ? "Your account is ready — you're signed in." : "You're signed in."}
+                    {welcome.kind === "signup" ? "Your account is ready â€” you're signed in." : "You're signed in."}
                   </p>
                   <Button type="button" onClick={closeAuth} variant="outline" size="sm">
                     Continue
@@ -512,7 +512,7 @@ function PopupContent() {
                   </h2>
                   <p id={descId} className="mb-7 text-[14.5px] leading-[22px] text-muted" role="status">
                     If an account exists for <span className="font-medium text-ink">{email.trim()}</span>, a password
-                    reset link is on its way. It can take a minute to arrive — check your spam folder too.
+                    reset link is on its way. It can take a minute to arrive â€” check your spam folder too.
                   </p>
                   <Button type="button" onClick={() => go("login")} className="h-12 w-full py-0">
                     <ArrowLeft size={14} aria-hidden /> Back to log in
@@ -692,3 +692,5 @@ export function AuthPopup() {
   const { popupOpen } = useAuth();
   return <AnimatePresence>{popupOpen && <PopupContent key="auth-popup" />}</AnimatePresence>;
 }
+
+
