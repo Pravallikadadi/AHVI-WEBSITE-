@@ -111,3 +111,45 @@ export const blogInputSchema = z
     },
     { message: "A cover image is required to publish", path: ["coverImage"] }
   );
+
+/**
+ * End-user account schemas (signup / login / password recovery)
+ */
+const userEmailField = z.string().trim().toLowerCase()
+  .min(1, "Email is required")
+  .max(254, "Email is too long")
+  .email("Please enter a valid email address");
+
+const userPasswordField = z.string()
+  .min(8, "Password must be at least 8 characters")
+  .max(128, "Password cannot exceed 128 characters");
+
+export const userSignupSchema = z.object({
+  name: z.string().trim().min(2, "Please enter your name").max(80, "Name is too long"),
+  email: userEmailField,
+  password: userPasswordField,
+  honeypot: z.string().max(0, "Bot detected").optional().default(""),
+});
+
+export type UserSignupInput = z.infer<typeof userSignupSchema>;
+
+export const userLoginSchema = z.object({
+  email: userEmailField,
+  password: z.string().min(1, "Password is required").max(128, "Password is too long"),
+});
+
+export type UserLoginInput = z.infer<typeof userLoginSchema>;
+
+export const forgotPasswordSchema = z.object({
+  email: userEmailField,
+});
+
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+
+export const resetPasswordSchema = z.object({
+  userId: z.string().trim().min(1, "This reset link is invalid").max(64, "This reset link is invalid"),
+  secret: z.string().trim().min(1, "This reset link is invalid").max(256, "This reset link is invalid"),
+  password: userPasswordField,
+});
+
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;

@@ -8,6 +8,7 @@ import { motion, useScroll, useMotionValueEvent, useReducedMotion } from "framer
 import { AhviLogo } from "@/components/ahvi-logo";
 import { MagneticButton } from "@/components/motion/magnetic-button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { AccountMenu } from "@/components/auth/account-menu";
 import { cn } from "@/lib/utils";
 import { navLinks, mobileMenuLinks } from "@/lib/site-data";
 
@@ -89,6 +90,7 @@ export function Navbar() {
             </Link>
           </MagneticButton>
           <ThemeToggle />
+          <AccountMenu />
           <button
             aria-label="Menu"
             onClick={() => setOpen(true)}
