@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useEffect, useRef } from "react";
 import { useReducedMotion } from "framer-motion";
 import { Palette, PersonStanding, Sparkles, ScanFace, Scan, type LucideIcon } from "lucide-react";
@@ -6,7 +6,6 @@ import { personalizationDims } from "@/lib/site-data";
 import { AnimatedCard } from "@/components/motion/animated-card";
 import { SparkCard } from "@/components/motion/spark-card";
 
-/** One icon per personalization dimension, keyed by its label — decorative, since the label text beside it already carries the meaning. */
 const DIMENSION_ICONS: Record<string, LucideIcon> = {
   "Skin Tone": Palette,
   "Body Shape": PersonStanding,
@@ -36,29 +35,57 @@ function DimensionCard({ d, i }: { d: (typeof personalizationDims)[number]; i: n
 export function PersonalizationGrid() {
   const reduce = useReducedMotion();
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const visibleRef = useRef(false);
   const pausedRef = useRef(false);
   const resumeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const n = personalizationDims.length;
+
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        visibleRef.current = entry.isIntersecting;
+      },
+      { threshold: 0.35 }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (reduce) return;
     const el = scrollerRef.current;
     if (!el) return;
+
     const timer = setInterval(() => {
-      if (pausedRef.current || el.clientWidth === 0) return;
+      if (!visibleRef.current || pausedRef.current || el.clientWidth === 0) return;
+
       const cardWidth = el.children[0]?.getBoundingClientRect().width ?? el.clientWidth;
-      const gap = 16;
-      const step = cardWidth + gap;
+      const step = cardWidth + 16;
       const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 4;
-      el.scrollTo({ left: atEnd ? 0 : el.scrollLeft + step, behavior: "smooth" });
+
+      el.scrollTo({
+        left: atEnd ? 0 : el.scrollLeft + step,
+        behavior: "smooth",
+      });
     }, AUTO_ADVANCE_MS);
+
     return () => clearInterval(timer);
-  }, [reduce, n]);
+  }, [reduce]);
+
+  useEffect(() => {
+    return () => {
+      if (resumeTimeout.current) clearTimeout(resumeTimeout.current);
+    };
+  }, []);
 
   const pause = () => {
     pausedRef.current = true;
     if (resumeTimeout.current) clearTimeout(resumeTimeout.current);
   };
+
   const scheduleResume = () => {
     if (resumeTimeout.current) clearTimeout(resumeTimeout.current);
     resumeTimeout.current = setTimeout(() => {
@@ -68,12 +95,13 @@ export function PersonalizationGrid() {
 
   return (
     <>
-      {/* Mobile: auto-advancing, swipeable carousel */}
+      {/* Mobile only: auto-advancing carousel */}
       <div
         ref={scrollerRef}
         className="scrollbar-hide flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 sm:hidden"
         onPointerDown={pause}
         onPointerUp={scheduleResume}
+        onPointerCancel={scheduleResume}
         onTouchStart={pause}
         onTouchEnd={scheduleResume}
       >
@@ -86,8 +114,11 @@ export function PersonalizationGrid() {
         ))}
       </div>
 
-      {/* Tablet/desktop: unchanged static grid */}
-      <div className="hidden gap-4 sm:grid sm:gap-5" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))" }}>
+      {/* Desktop and tablet: original static grid */}
+      <div
+        className="hidden gap-4 sm:grid sm:gap-5"
+        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))" }}
+      >
         {personalizationDims.map((d, i) => (
           <AnimatedCard key={d.n} className="h-full">
             <DimensionCard d={d} i={i} />
@@ -97,3 +128,5 @@ export function PersonalizationGrid() {
     </>
   );
 }
+
+

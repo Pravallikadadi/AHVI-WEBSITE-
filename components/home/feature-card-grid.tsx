@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useEffect, useRef, useState } from "react";
 import { useReducedMotion } from "framer-motion";
 import { ScrollReveal } from "@/components/motion/scroll-reveal";
@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 const AUTOPLAY_MS = 4200;
 const RESUME_AFTER_MS = 3000;
 
-/** Used only by DailyExperience ("A day with AHVI") — the gradient spark-border treatment is scoped
+/** Used only by DailyExperience ("A day with AHVI") â€” the gradient spark-border treatment is scoped
     here via SparkCard and never applied to Style Boards, the Homepage Style section, or any other card grid.
     A gently auto-advancing, swipeable carousel with pagination dots that track the active card. */
 export function FeatureCardGrid({ items }: { items: { id: string; label: string; note: string }[] }) {
@@ -44,8 +44,8 @@ export function FeatureCardGrid({ items }: { items: { id: string; label: string;
     el.scrollTo({ left: card.offsetLeft - el.offsetLeft, behavior: "smooth" });
   };
 
-  // Only start autoplay once this carousel's section is actually on screen — not the instant the
-  // page loads — and stop again the moment it scrolls out of view. A single threshold means the
+  // Only start autoplay once this carousel's section is actually on screen â€” not the instant the
+  // page loads â€” and stop again the moment it scrolls out of view. A single threshold means the
   // callback only fires on real enter/exit crossings, not on every small scroll movement.
   useEffect(() => {
     const el = wrapperRef.current;
@@ -56,7 +56,7 @@ export function FeatureCardGrid({ items }: { items: { id: string; label: string;
   }, []);
 
   useEffect(() => {
-    if (reduce || !inView) return;
+    if (reduce || !inView || window.matchMedia("(min-width: 640px)").matches) return;
     const timer = setInterval(() => {
       if (pausedRef.current) return;
       const el = scrollerRef.current;
@@ -131,3 +131,6 @@ export function FeatureCardGrid({ items }: { items: { id: string; label: string;
     </div>
   );
 }
+
+
+
