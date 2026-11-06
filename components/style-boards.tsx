@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import Image from "next/image";
 import { useReducedMotion } from "framer-motion";
 import { styleBoards } from "@/lib/site-data";
@@ -11,12 +11,12 @@ import { AhviLogo } from "@/components/ahvi-logo";
 export function StyleBoardsRail() {
   const reduce = useReducedMotion();
   return (
-    <div className="scrollbar-hide flex flex-nowrap snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 sm:px-8">
+    <div className="scrollbar-hide flex flex-nowrap snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 sm:px-8 lg:grid lg:grid-cols-3 lg:overflow-visible xl:grid-cols-6">
       {styleBoards.map((b, i) => (
         <ScrollReveal
           key={b.name}
           delay={i * 0.07}
-          className="w-[85%] max-w-[340px] shrink-0 snap-center sm:w-[260px] sm:max-w-none"
+          className="w-[85%] max-w-[340px] shrink-0 snap-center sm:w-[260px] sm:max-w-none lg:w-auto lg:max-w-none"
         >
           <AnimatedCard className="group h-full overflow-hidden border border-ink/10 bg-bg transition-shadow duration-300 hover:border-ink/20 hover:shadow-[0_20px_48px_rgba(0,0,0,0.1)]">
             <SpotlightCard className="flex h-full flex-col gap-2.5 p-4 sm:gap-3">
@@ -54,3 +54,4 @@ export function StyleBoardsRail() {
     </div>
   );
 }
+
